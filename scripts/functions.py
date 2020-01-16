@@ -536,7 +536,7 @@ class Dipole():
         dipole.center = (start+end)/2
         
         if not jump:
-            if dipole.kind in [L, J, T, W]: # create dipole_list_DC
+            if dipole.kind in [L, J, T, W, I, V]: # create dipole_list_DC
                 Dipole.dipole_list_DC.append(dipole)
                 
             if dipole.kind in [T]: # very particular case to transmission line
@@ -563,7 +563,7 @@ class Dipole():
                 Dipole.dipole_list_AC.append(dipole_s)
                 Dipole.dipole_list_AC.append(dipole_e)
                 
-            if dipole.kind in [C, R, L, J]:
+            if dipole.kind in [C, R, L, J, A]:
                 Dipole.dipole_list_AC.append(dipole)
                 
         return dipole
@@ -1274,6 +1274,13 @@ class Representation():
         self.oJ_mat = oJ_mat
 #        print('oJ_oL_mat_defined')
 #        print(oL_mat)
+    
+    def calculate_I_DC(self):
+        res=0
+        for dipole in enumerate(self.dipoles):
+            if dipole.kind==I:
+                res+=dipole.val
+        self.I_DC=res
         
     def U(self, gamma_vec):
         phi_vec = self.F @ gamma_vec + self.f_eval
