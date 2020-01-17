@@ -412,19 +412,39 @@ def choice(maygo):
         maygo[:, where_to_choose] = np.array([False for ii in range(shape[0])])
     return choices
 
-def associated_string(F_list):
-    print('associated string')
-    print(F_list)
-    if F_list==[]:
+def associated_string(arglist,type_string):
+    print(arglist)
+    if arglist==[]:
         to_return='(0)'
     else:
-        to_return = '('
-        for F in F_list:
-            to_return+=str(F)+'+'
-        to_return=to_return[:-1]+')'
+        if type_string=='flux':
+            to_return = '('
+            for elt in arglist:
+                to_return+=str(elt)+'+'
+            to_return=to_return[:-1]+')'
+        elif type_string=='I_DC':
+            to_return = '('
+            for elt in arglist:
+                to_return+= elt[1]+str(elt[0]) #elt[1] is a string with sign and elt[0] is the source
+            to_return+=')'
     print('res')
+    print(type_string)
     print(to_return)
     return to_return
+
+#def associated_string(F_list):
+#    print('associated string')
+#    print(F_list)
+#    if F_list==[]:
+#        to_return='(0)'
+#    else:
+#        to_return = '('
+#        for F in F_list:
+#            to_return+=str(F)+'+'
+#        to_return=to_return[:-1]+')'
+#    print('res')
+#    print(to_return)
+#    return to_return
         
 def matrix_product_str(mat, vec):
     # mat is float
@@ -577,6 +597,15 @@ class Dipole():
                 elif (node.coor==dipole.end).all():
                     node1 = node
             cls.dipoles_nodes[dipole] = [node0, node1] # this dict map a dipole to a pair of nodes
+            
+    @classmethod
+    def empty_dipole_list(cls):
+        Dipole.dipole_list = []
+        Dipole.dipole_list_DC = []
+        Dipole.dipole_list_AC = []
+        Dipole.dipoles_nodes = {}
+        Dipole.n_wire = 0
+        
         
     def plot(self, ax, lw_scale):
         plt.rc('lines', color=self.color, lw=2*lw_scale, solid_capstyle='round', dash_capstyle='round')
@@ -1027,6 +1056,15 @@ class Node():
             print(to_print)
         print('')
             
+        
+    @classmethod
+    def empty_node_list(cls):
+        cls.node_list = []
+        cls.eq_node_list = []
+        cls.eq_node_dict = {}
+        cls.n_node = {}
+        
+        
     def plot(self, ax, lw_scale=1):
         coor = self.coor
         #ax.plot(*coor, '.', color='k')
@@ -1057,6 +1095,7 @@ class Hole():
     hole_list = []
     hole_val = {}
     def __init__(self, name, val, text=None):
+        print(Hole.hole_val)
         self.name = name
         self.val = val
         if text is None:
@@ -1064,7 +1103,7 @@ class Hole():
         else:
             self.text=text
         self.assign_kind()
-        Hole.hole_val[name]=val
+#        Hole.hole_val[name]=val
         print(Hole.hole_val)
         
     def __str__(self):
@@ -1118,7 +1157,110 @@ class Hole():
             coor_text = self.coor+np.array([0,-length-0.1])
             ax.text(*coor_text, self.text, color='k', va='top', ha='center')
 
+    @classmethod
+    def empty_hole_list(cls):
+        Hole.hole_list = []
         
+#class Source_DC():
+#    source_DC_list = []
+#    source_DC_val = {}
+#    source_DC_nodes ={}
+#    def __init__(self, name, val, text=None):
+#        self.name = name
+#        self.val = val
+#        if text is None:
+#            self.text=name
+#        else:
+#            self.text=text
+#        self.start = None
+#        self.end = None
+#        self.center = None
+#        Source_DC.source_DC_val[name]=val
+#        print(Source_DC.source_DC_val)
+#
+#     
+#    def __str__(self):
+#        return self.name
+#    
+#    def __repr__(self):
+#        return self.name
+#
+#    @property
+#    def val(self):
+#        return self.__val
+#
+#    @val.setter
+#    def val(self, val):
+#        Source_DC.source_DC_val[self.name]=val
+#        self.__val = val
+#        
+##    def assign_kind(self):
+##        name = self.name
+##        if name[0]=='F':
+##            self.kind = F
+##        if name[0]=='M':
+##            self.kind = M
+#   # later maybe if the class source contais DC sources and AC sources         
+#    
+#    def assign_coor(self, start, end):
+#        source=self
+#        source.start = start
+#        source.end = end
+#        source.center = (start+end)/2
+#        Source_DC.source_DC_list.append(self)  
+#        
+#    def assign_kind(self):
+#        name = self.name
+#        if name[0]=='I':
+#            self.kind = I
+#
+#    
+##for the moment, there is just a method for DC source I to plot 
+#    def plot(self, ax, lw_scale=1):
+#        size = 0.3
+#        width = 0.066
+#
+#    #    plt.rc('lines', color='k', lw=2)
+##        x = np.linspace(-np.pi, np.pi, 21)
+##        sine = np.sin(x)*size/4
+##        _line_sin = np.stack((x/np.pi*size/2, sine)).T
+##        
+#        _circle_center = np.array([0,0])
+#        _line1 = np.array([[-1, 0], [-size, 0]])
+#        _line2 = np.array([[size, 0], [1, 0]])
+#        _arrow_line = np.array([[size*2/3,0], [-size*2/3,0]])
+#        _arrow_head = np.array([[size*2/3-width,width], [size*2/3,0], [size*2/3-width,-width]])
+#        if not self.horiz:
+#            _arrow_line = _arrow_line[:, ::-1]
+#            _arrow_head = _arrow_head[:, ::-1]
+#            _line1 = _line1[:, ::-1]
+#            _line2 = _line2[:, ::-1]
+#        _arrow_line += self.center
+#        _arrow_head += self.center
+#        _line1 += self.center
+#        _line2 += self.center
+#        _circle_center = _circle_center +self.center
+#        
+#        arrow_line = Line2D(*pt_to_xy(_arrow_line))
+#        arrow_head = Line2D(*pt_to_xy(_arrow_head))
+#        line1 = Line2D(*pt_to_xy(_line1))
+#        line2 = Line2D(*pt_to_xy(_line2))
+#        circle = Circle(_circle_center, radius=size, fc='none', ec = self.color, lw=2*lw_scale)
+#        artists = [line1, line2, arrow_line, arrow_head, circle]
+#        for art in artists:
+#            ax.add_artist(art)
+#            
+#    @classmethod        
+#    def build_sources_nodes(cls):
+#        for source in cls.source_DC_list:
+#            for node in Node.node_list:
+#                if (node.coor==source.start).all():
+#                    node0 = node
+#                elif (node.coor==source.end).all():
+#                    node1 = node
+#            cls.source_DC_nodes[source] = [node0, node1] # this dict map a dipole to a pair of nodes
+            
+    
 class Representation():
     # represents a subset of dipoles and nodes
     
@@ -1132,6 +1274,7 @@ class Representation():
         else:
             raise ValueError("For Representation(), 'kind' should be in ['raw', 'equ']")
         self.ker = None
+#        self.I_DC_nodes=[]  #list that is the size of the node list (whether it is raw or eq list). For each node it gives the current (with sign) which is at the node
         if self.dipoles is not None:
             self.build_A()
         
@@ -1224,8 +1367,36 @@ class Representation():
             for hole in Hole.hole_list:
                 if hole_in_loop(hole, dipole_loop):
                     self.associated_phiext[jj].append(hole)
+                    
+#    def build_I_DC_nodes(self):
+#        list_res=[[] for k in range(len(self.nodes))] 
+#        for source in Source_DC.source_DC_list:
+#            if source in Source_DC.source_DC_nodes:
+#                couple_node=Source_DC.source_DC_nodes[source]
+#                for (ii,node) in enumerate(self.nodes):
+#                    if node==couple_node[0]:
+#                        list_res[ii]=list_res[ii]+[(source,'+')]
+#                    elif node==couple_node[1]:
+#                        list_res[ii]=list_res[ii]+[(source,'-')]
+#        self.I_DC_nodes=list_res 
+#        for (jj,elt) in enumerate(self.I_DC_nodes):
+#            self.I_DC_nodes[jj]=associated_string(elt, type_string='I_DC') #we can store the information like this with strings -> easier to plot + use of function eval
+#            
+#        
         
+    def build_vec_I_DC(self):
+        print('build vec I DC')
+        print(self.dipoles)
+        vec=[]
+        for (ii, elt) in enumerate(self.dipoles):
+            if elt.kind==I:
+                vec.append(elt.val)
+            else:
+                vec.append(0)
+        self.vec_I_DC=vec
+    
     def build_constrain(self, kind):
+        print('Build constrain '+kind)
         if self.dipoles is not None:
             n_phi = len(self.dipoles)
             print('ker')
@@ -1245,12 +1416,17 @@ class Representation():
             if kind=='DC':
                 constrain_vec = ['0' for ii in range(n_phi)]
                 for ii, choice in enumerate(choices):
-                    associated_str = associated_string(self.associated_phiext[ii])
+                    associated_str = associated_string(self.associated_phiext[ii],type_string='flux')
                     constrain_vec[choice] = associated_str
                 f = matrix_product_str(inv, constrain_vec)
                 print(f)
                 self.f = f
+#                self.build_I_DC_nodes()
             self.independant_dipoles = [dipole for ii, dipole in enumerate(self.dipoles) if not(ii in choices)]
+            self.build_vec_I_DC()
+            print('Vec I DC')
+            print(self.vec_I_DC)
+            print('Independant Dipoles')
             print(self.independant_dipoles)
     
     def eval_f(self):
@@ -1258,7 +1434,14 @@ class Representation():
         for elt in self.f:
             f_eval.append(eval(elt, Hole.hole_val))
         self.f_eval = np.array(f_eval)
-        
+#    
+#    def eval_I_DC_nodes(self):
+#        I_DC_nodes_eval=[]
+#        for elt in self.I_DC_nodes:
+#            I_DC_nodes_eval.append(eval(elt,Source_DC.source_DC_val))
+#        self.I_DC_nodes_eval=np.array(I_DC_nodes_eval)
+            
+            
     def oL_oJ_mat(self):
         n_phi = len(self.dipoles)
         oL_mat = np.zeros((n_phi, n_phi))
@@ -1274,20 +1457,13 @@ class Representation():
         self.oJ_mat = oJ_mat
 #        print('oJ_oL_mat_defined')
 #        print(oL_mat)
-    
-    def calculate_I_DC(self):
-        res=0
-        for dipole in enumerate(self.dipoles):
-            if dipole.kind==I:
-                res+=dipole.val
-        self.I_DC=res
-        
+
     def U(self, gamma_vec):
         phi_vec = self.F @ gamma_vec + self.f_eval
 #        print(phi_vec)
 #        print(self.oL_mat)
 #        print(self.oJ_mat)
-        return np.sum(self.oL_mat@phi_vec**2-self.oJ_mat@np.cos(phi_vec))
+        return np.sum(1/2*self.oL_mat@phi_vec**2-self.oJ_mat@np.cos(phi_vec)) + (phi_vec.T @ self.vec_I_DC)/phi0
 
     def solve_DC(self, guess=None, verbose=True, debug=False):
         
@@ -1301,6 +1477,7 @@ class Representation():
         if self.dipoles is not None:
             self.oL_oJ_mat()
             self.eval_f()
+#            self.eval_I_DC_nodes()
             n_gamma = len(self.independant_dipoles)
             if debug:
                 print(n_gamma)
@@ -1335,6 +1512,8 @@ class Representation():
                 print(self.dipoles)
                 print(phi_vec_sol)
                 print('')
+                print('Gamma sol')
+                print(gamma_vec_sol)
             return gamma_vec_sol
         
     def build_current_mat(self, omega):
@@ -1428,9 +1607,12 @@ class Representation():
         return energy
         
     def eom(self, omega):
+        print('eom')
         self.build_current_mat(omega)
-        eom_mat = self.A@self.current_mat@self.F    
+        eom_mat = self.A@self.current_mat@self.F   
+        print(eom_mat)
         eom_mat = np.delete(eom_mat, 0, axis=0) #delete ground equation of motion
+        print(eom_mat)
         return eom_mat
     
     def det_eom(self, omega): # take a single omega or several
@@ -1455,6 +1637,9 @@ class Representation():
                 if counter_T%2==0:
                     to_return = to_return*np.sin(omega*dipole.val[0])
                 counter_T+=1
+        print('det_eom_called')
+        print('omega val '+str(omega))
+        print('res '+str(to_return))
         return to_return
     
     def display_eom(self, ax, omegas, kappas=None, guesses=None):
@@ -1498,6 +1683,8 @@ class Representation():
         eig_phizpfs = []
 #        eig_gammazpfs = []
         for guess in guesses:
+            print('Det eom for Newton routine')
+            print(self.det_eom(guess))
             eig_omega = newton(self.det_eom, guess) # find nearest root -> eig_omega
             if verbose:
                 print('Mode omega/2pi:', np.real(eig_omega)/2/np.pi)
@@ -1597,17 +1784,24 @@ class Circuit(object):
         # square grid
         
         #Reinitialisation of all dipoles, nodes, holes
-        Dipole.dipole_list = []
-        Dipole.dipole_list_DC = []
-        Dipole.dipole_list_AC = []
-        Dipole.dipoles_nodes = {}
-        Dipole.n_wire = 0
-        Node.node_list = []
-        Node.eq_node_list = []
-        Node.eq_node_dict = {}
-        Node.n_node = {}
-        Hole.hole_list = []
+        #Better : faire une fonction Dipole.empty() et pareil pour Nodes
+#        Dipole.dipole_list = []
+#        Dipole.dipole_list_DC = []
+#        Dipole.dipole_list_AC = []
+#        Dipole.dipoles_nodes = {}
+#        Dipole.n_wire = 0
+#        Node.node_list = []
+#        Node.eq_node_list = []
+#        Node.eq_node_dict = {}
+#        Node.n_node = {}
+#        Hole.hole_list = []
+#        Source_DC.source_DC_list=[]
+#        Source_DC.source_DC_nodes={}
+#        Source_DC.source_DC_val={}
         #we do not put the val Dipole.val and Holes.val to empty because we do not need this.
+        Dipole.empty_dipole_list()
+        Node.empty_node_list()
+        Hole.empty_hole_list()
         print('Begining')
         print(Dipole.dipole_list)
         self.circuit_array = circuit_array
@@ -1618,7 +1812,9 @@ class Circuit(object):
         print(Dipole.dipole_list)
         print(Node.node_list)
         print(Hole.hole_list)
+#        print(Source_DC.source_DC_list)
         Dipole.build_dipoles_nodes()
+#        Source_DC.build_sources_nodes()
 
         self.rep_raw_DC = Representation('raw', Dipole.dipole_list_DC) # should occur before equivalent nodes
         self.rep_raw_DC.find_loops()
@@ -1651,13 +1847,13 @@ class Circuit(object):
                 if elt is None:
                     pass
                 else:
-                    if jj%2==0: # can be node or horizontal dipole
+                    if jj%2==0: # can be node or horizontal dipole or a source DC I horizontal
                         if ii%2==0: # it is a node
                             elt = elt.assign_coor(array_to_plot((jj, ii)))
-                        else: # it is a dipole horizontal
-                            elt = elt.assign_coor(array_to_plot((jj, ii-1)), array_to_plot((jj, ii+1)))
+                        else: # it is a dipole horizontal or a source DC I horizontal
+                                elt = elt.assign_coor(array_to_plot((jj, ii-1)), array_to_plot((jj, ii+1)))
                     else: # can be a vertical dipole or a flux
-                        if ii%2==0: # it is a vertical dipole
+                        if ii%2==0: # it is a vertical dipole or a source DC I horizontal
                             elt = elt.assign_coor(array_to_plot((jj+1, ii)), array_to_plot((jj-1, ii)))
                         else: # it is a flux
                             elt.assign_coor(array_to_plot((jj, ii)))
