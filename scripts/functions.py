@@ -9,7 +9,7 @@ Created on Sat Apr 27 16:44:46 2019
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy import linalg as nl
-from scipy.optimize import minimize, newton
+from scipy.optimize import minimize, newton, root
 import scipy.constants
 from math import factorial
 from matplotlib.lines import Line2D
@@ -37,7 +37,7 @@ A = 'AC'
 V = 'vol'
 I = 'amp'
 
-E = 'exc'
+E = 'equ'
 G = 'grd'
 N = 'nod'
 
@@ -59,6 +59,24 @@ def simplify_arith_expr(expr):
     except Exception:
         print("Couldn't parse", expr)
         raise
+        
+def name_elements(elts): # gives relevant name to repeating dipoles
+    parents = [elt.parent for elt in elts]
+    parents_number = {}
+    for parent in set(parents):
+        count = parents.count(parent)
+        if count==1:
+            parents_number[parent] = -1
+        else:
+            parents_number[parent] = count-1
+
+    for elt in elts[::-1]:
+        parent = elt.parent
+        if parents_number[parent]==-1:
+            pass
+        else:
+            elt.name = elt.name+'%d'%(parents_number[parent])
+            parents_number[parent] -= 1
         
 def find_ker(m): #implements Gauss elimination to find the loops in the circuit
     indices = []
@@ -172,10 +190,8 @@ def clockwise(edges_loop, orientation_edges): # only means something if the loop
                 print(ii)
                 print(orientation_edges[ii])
                 if orientation_edges[ii]==1:
-                    print('went here')
                     edge_max = edge
                 else:
-                    print('went there')
                     edge_max = (edge[1], edge[0])
                 
     if edge_max[0][0]>edge_max[1][0]:
@@ -466,10 +482,17 @@ class Dipole():
     dipoles_nodes = {}
     n_wire = 0
     
-    def __init__(self, name, val=None, text=None, color='k', phi=None, colorbis=None):
+    def __init__(self, name, val=None, text=None, color='k', phi=None, colorbis=None, parent=None, ground=None, plotted=True, circuit=None):
         # kind should be in 'C', 'L', 'R', 'J', 'T'
         self.name = name
         self.assign_kind()
+        self.ground=ground
+        if (self.kind==T) and (ground is None):
+            raise Exception('You should specify a ground for transmission lines')
+
+        self.parent = parent
+        self.children = []
+        self.circuit=circuit
         self.val = val # for kind 'T', val should be a tuple with (t, Z0)
 #        if not(val is None):
 #            if self.kind!=T:
@@ -484,6 +507,7 @@ class Dipole():
             self.text=text
         self.color=color
         self.colorbis=colorbis
+        self.phi=phi
         if phi is not None:
             self.arrow = True
             self.phi_text = phi
@@ -495,6 +519,7 @@ class Dipole():
         self.horiz = None
         self.center = None
         self.phi_DC = 0 # should change with solve_DC
+        self.plotted = plotted
         
     def __str__(self):
         return self.name
@@ -508,17 +533,12 @@ class Dipole():
 
     @val.setter
     def val(self, val):
-        Dipole.dipole_val[self.name]=val
-        if self.kind==T:
-            Dipole.dipole_val[self.name+'e']=val
-            Dipole.dipole_val[self.name+'s']=val
-            try:
-                index = Dipole.dipole_list.index(self)
-                Dipole.dipole_list[index+1].__val = val
-                Dipole.dipole_list[index+2].__val = val
-            except Exception:
-                print('Tried to modify TL property')
+        # Dipole.dipole_val[self.name]=val
+        for dipole in self.children:
+            dipole.val = val
         self.__val = val
+        if self.circuit is not None:
+            self.circuit.dipoles_val[self.name] = val
     
     def assign_kind(self):
         name = self.name
@@ -540,64 +560,61 @@ class Dipole():
             self.kind = V
         if name[0]=='I':
             self.kind = I
-            
-    def assign_coor(self, start, end, jump=False): # used at parsing
-        dipole = self
-        if not jump: 
-            if dipole.kind==W:
-                # one just want to copy the wires, for now the only dipole that is relevant to use multiple times
-                dipole = Dipole(self.name+str(Dipole.n_wire), color=self.color)
-                Dipole.n_wire+=1
-            Dipole.dipole_list.append(dipole)
-            
-            dipole.horiz = start[1]==end[1] # y_start = y_end then horizontal
+    
+    def copy_dipole(self, suff='', plotted=True, circuit=None):
+        child = Dipole(self.name+suff, val=self.val, text=self.text, color=self.color, phi=self.phi, colorbis=self.colorbis, parent=self, ground=self.ground, plotted=plotted, circuit=circuit)
+        self.children.append(child)
+        return child
+    
+    def assign_coor(self, circuit, start, end): # used at parsing, jump when only need to create fictious dipole for AC/DC Repr
+        # this should create a dipole with the val linked to the one that 
+        # was used for creation
+        
+        dipole = self.copy_dipole(circuit=circuit)
+        circuit.dipoles.append(dipole)
+        
         dipole.start = start
         dipole.end = end
         dipole.center = (start+end)/2
-        
-        if not jump:
-            if dipole.kind in [L, J, T, W, I, V]: # create dipole_list_DC
-                Dipole.dipole_list_DC.append(dipole)
-                
-            if dipole.kind in [T]: # very particular case to transmission line
-                                   # we create two dipole at each end of the trl
-                dipole_s = Dipole(dipole.name+'s', dipole.val)
-                dipole_e = Dipole(dipole.name+'e', dipole.val)
-                ground = Node('G')
-                if dipole.horiz:
-                    ground_s_coor = start+np.array([0.1, -0.5])
-                    ground_e_coor = end+np.array([-0.1, -0.5])
-                else:
-                    ground_s_coor = start+np.array([-0.5, 0.1])
-                    ground_e_coor = end+np.array([-0.5, -0.1])
-                ground.assign_coor(ground_s_coor) # won't be plotted
-                ground.assign_coor(ground_e_coor) # won't be plotted
-                
-                dipole_s.assign_coor(ground_s_coor, start, jump=True) # just assign start and stop
-                dipole_e.assign_coor(ground_e_coor, end, jump=True)
-                dipole_s.horiz = not dipole.horiz
-                dipole_e.horiz = not dipole.horiz
-                
-                Dipole.dipole_list.append(dipole_s)
-                Dipole.dipole_list.append(dipole_e)
-                Dipole.dipole_list_AC.append(dipole_s)
-                Dipole.dipole_list_AC.append(dipole_e)
-                
-            if dipole.kind in [C, R, L, J, A]:
-                Dipole.dipole_list_AC.append(dipole)
+        dipole.horiz = start[1]==end[1]
                 
         return dipole
+    
+    def fill_dipoles(self):
 
-    @classmethod
-    def build_dipoles_nodes(cls):
-        for dipole in cls.dipole_list:
-            for node in Node.node_list:
-                if (node.coor==dipole.start).all():
-                    node0 = node
-                elif (node.coor==dipole.end).all():
-                    node1 = node
-            cls.dipoles_nodes[dipole] = [node0, node1] # this dict map a dipole to a pair of nodes
+        if self.kind in [L, J, T, W, I, V]:
+            self.circuit.dipoles_DC.append(self)
             
+        if self.kind in [T]:
+            dipole_s = self.copy_dipole(suff='s', plotted=False, circuit=self.circuit)
+            dipole_e = self.copy_dipole(suff='e', plotted=False, circuit=self.circuit)
+            ground = self.ground
+            if self.horiz:
+                ground_s_coor = self.start+np.array([0.1, -0.5])
+                ground_e_coor = self.end+np.array([-0.1, -0.5])
+            else:
+                ground_s_coor = self.start+np.array([-0.5, 0.1])
+                ground_e_coor = self.end+np.array([-0.5, -0.1])
+            ground.assign_coor(self.circuit, ground_s_coor, plotted=False) # won't be plotted
+            ground.assign_coor(self.circuit, ground_e_coor, plotted=False) # won't be plotted
+            
+            dipole_s.start = ground_s_coor
+            dipole_s.end = self.start 
+            dipole_s.center = (ground_s_coor+self.start)/2
+            dipole_e.start = ground_e_coor
+            dipole_e.end = self.end 
+            dipole_e.center = (ground_e_coor+self.end)/2
+            dipole_s.horiz = not self.horiz
+            dipole_e.horiz = not self.horiz
+            
+            self.circuit.dipoles.append(dipole_s)
+            self.circuit.dipoles.append(dipole_e)
+            self.circuit.dipoles_AC.append(dipole_s)
+            self.circuit.dipoles_AC.append(dipole_e)
+            
+        if self.kind in [C, R, L, J, A, I]:
+            self.circuit.dipoles_AC.append(self)
+
     @classmethod
     def empty_dipole_list(cls):
         Dipole.dipole_list = []
@@ -608,62 +625,63 @@ class Dipole():
         
         
     def plot(self, ax, lw_scale):
-        plt.rc('lines', color=self.color, lw=2*lw_scale, solid_capstyle='round', dash_capstyle='round')
-
-        if self.horiz:
-            ha = 'center'
-            va = 'top'
-        else:
-            ha = 'right'
-            va = 'center'
-        
-        x_c, y_c = self.center
-        name = self.name
-        text = self.text
-        if self.kind==W:
-#            print(self.name)
-#            print('color')
-#            print(self.color)
-            ax.plot(*pt_to_xy([self.start, self.end]), color=self.color)
-        else:
-            if not self.arrow or (name != text):
-                if self.horiz:
-                    if self.kind==C:
-                        ax.text(x_c, y_c-0.3, text, va=va, ha=ha)
-                    elif self.kind in [A, V, I]:
-                        ax.text(x_c, y_c-0.4, text, va=va, ha=ha)
+        if self.plotted:
+            plt.rc('lines', color=self.color, lw=2*lw_scale, solid_capstyle='round', dash_capstyle='round')
+    
+            if self.horiz:
+                ha = 'center'
+                va = 'top'
+            else:
+                ha = 'right'
+                va = 'center'
+            
+            x_c, y_c = self.center
+            name = self.name
+            text = self.text
+            if self.kind==W:
+    #            print(self.name)
+    #            print('color')
+    #            print(self.color)
+                ax.plot(*pt_to_xy([self.start, self.end]), color=self.color)
+            else:
+                if not self.arrow or (name != text):
+                    if self.horiz:
+                        if self.kind==C:
+                            ax.text(x_c, y_c-0.3, text, va=va, ha=ha)
+                        elif self.kind in [A, V, I]:
+                            ax.text(x_c, y_c-0.4, text, va=va, ha=ha)
+                        else:
+                            ax.text(x_c, y_c-0.25, text, va=va, ha=ha)
                     else:
-                        ax.text(x_c, y_c-0.25, text, va=va, ha=ha)
-                else:
-                    if self.kind==C:
-                        ax.text(x_c-0.3, y_c, text, va=va, ha=ha)
-                    elif self.kind in [A, V, I]:
-                        ax.text(x_c-0.4, y_c, text, va=va, ha=ha)
-                    else:
-                        ax.text(x_c-0.25, y_c, text, va=va, ha=ha)
-            if self.arrow:
-                self.plot_arrow(ax, text=self.phi_text)
-            if self.kind==L:
-                self.draw_ind(ax, lw_scale=lw_scale)
-            if self.kind==C:
-                self.draw_capa(ax, lw_scale=lw_scale)
-            if self.kind==R:
-                self.draw_res(ax, lw_scale=lw_scale)
-            if self.kind==J:
-                self.draw_jct(ax, lw_scale=lw_scale)
-            if self.kind==T:
-                self.draw_trl(ax, lw_scale=lw_scale)
-            if self.kind==A:
-                self.draw_AC(ax, lw_scale=lw_scale)
-            if self.kind==V:
-                self.draw_V(ax, lw_scale=lw_scale)
-            if self.kind==I:
-                self.draw_I(ax, lw_scale=lw_scale)
+                        if self.kind==C:
+                            ax.text(x_c-0.3, y_c, text, va=va, ha=ha)
+                        elif self.kind in [A, V, I]:
+                            ax.text(x_c-0.4, y_c, text, va=va, ha=ha)
+                        else:
+                            ax.text(x_c-0.25, y_c, text, va=va, ha=ha)
+                if self.arrow:
+                    self.plot_arrow(ax, text=self.phi_text)
+                if self.kind==L:
+                    self.draw_ind(ax, lw_scale=lw_scale)
+                if self.kind==C:
+                    self.draw_capa(ax, lw_scale=lw_scale)
+                if self.kind==R:
+                    self.draw_res(ax, lw_scale=lw_scale)
+                if self.kind==J:
+                    self.draw_jct(ax, lw_scale=lw_scale)
+                if self.kind==T:
+                    self.draw_trl(ax, lw_scale=lw_scale)
+                if self.kind==A:
+                    self.draw_AC(ax, lw_scale=lw_scale)
+                if self.kind==V:
+                    self.draw_V(ax, lw_scale=lw_scale)
+                if self.kind==I:
+                    self.draw_I(ax, lw_scale=lw_scale)
 #        self.plot_arrow(ax)
     
     def plot_arrow(self, ax, size=1, offset=0.3, color='k', text=''):
         if np.abs(size)>1e-4:
-            nodes = Dipole.dipoles_nodes[self]
+            nodes = self.circuit.dipoles_nodes[self]
             node_start = nodes[0].coor
             node_end = nodes[1].coor
             if self.horiz: # horizontal arrow
@@ -949,11 +967,15 @@ class Node():
     n_node = {}
     # node can have several coordinates
     
-    def __init__(self, name, color='k'):
+    def __init__(self, name, color='k', parent=None, plotted=True, circuit=None):
         self.name = name
         self.assign_kind()
+        self.parent = parent
+        self.children = []
         self.coor = None
         self.color= color
+        self.plotted=plotted
+        self.circuit=circuit
         
     def __str__(self):
         return self.name
@@ -962,20 +984,18 @@ class Node():
         return self.name
     
     def eq_node(self):
-        return Node.eq_node_dict[self]
+        return self.circuit.eq_nodes_dict[self]
     
-    def assign_coor(self, coor):
-        # create a node each time one assign a coordinate, maybe not for excitations 
-        # TODO excitation case
-        if self.name in Node.n_node: # if already used
-            nb = Node.n_node[self.name]
-        else:
-            nb = 0
-        Node.n_node[self.name] = nb+1
-        
-        node = Node(self.name+str(nb), color=self.color)
-        Node.node_list.append(node)
-        Node.eq_node_dict[node]=node
+    def copy_node(self, plotted=True, circuit=None):
+        child = Node(self.name, color=self.color, parent=self, plotted=plotted, circuit=circuit)
+        self.children.append(child)
+        return child
+    
+    def assign_coor(self, circuit, coor, plotted=True):
+        # create a node each time one assigns a coordinate, maybe not for excitations 
+        node = self.copy_node(plotted=plotted, circuit=circuit)
+        circuit.nodes.append(node)
+        circuit.eq_nodes_dict[node]=node
         node.coor = coor
         return node
         
@@ -984,69 +1004,9 @@ class Node():
         if name=='':
             self.kind = N
             self.text = None        
-        elif name.isdigit():
-            self.kind = N
-            self.text = None
         else:
-            if name[0]=='E':
-                self.kind = E
-                self.text = 'E'
-            if name[0]=='G':
-                self.kind = G
-                self.text = 'G'
-
-    @classmethod
-    def equivalent_nodes(cls):
-
-        node_pairs = []
-        for dipole in Dipole.dipole_list: # each time dipole is wire, the pair consist of equivalent nodes
-            if dipole.kind==W:
-                node_pairs.append(Dipole.dipoles_nodes[dipole].copy())
-
-        node_types = []
-        node_groups = []
-        for node in cls.node_list: # each node with same name are equivalent 
-            short_name = rem_digits(node.name)
-            if short_name!='':
-                if short_name not in node_types:
-                    node_types.append(short_name)
-                    node_groups.append([node])
-                else:
-                    index = node_types.index(short_name)
-                    node_groups[index].append(node)
-                    
-        node_pairs += node_groups
-        count = 0
-        while count<len(node_pairs): # find the most general equivalent groups
-            pair = node_pairs.pop(count)
-            for ii, group in enumerate(node_pairs[count:]):
-                if any([elt in group for elt in pair]):
-                    node_pairs[ii+count]+=pair # fusionner la paire avec le groupe
-                    break
-            else:
-                node_pairs = [pair]+node_pairs
-                count +=1
-
-        for group in node_pairs:
-            # The reference node is either the one with a name or the most common one
-            list_bool = [(elt.kind==G or elt.kind==E) for elt in group]
-            if any(list_bool):
-                ref = group[list_bool.index(True)]
-            else:
-                ref = max(set(group), key=group.count)
-            print(ref, group)
-            for node in group:
-                cls.eq_node_dict[node]=ref
-                
-        for node in cls.node_list:
-            eq_node = node.eq_node()
-            if not(eq_node in cls.eq_node_list):
-                cls.eq_node_list.append(eq_node)
-        # put ground first
-        list_bool = [elt.kind==G for elt in cls.eq_node_list]
-        if any(list_bool):
-            ground = cls.eq_node_list.pop(list_bool.index(True))
-            cls.eq_node_list = [ground] + cls.eq_node_list
+            self.kind = E
+            self.text = name
     
     @classmethod
     def print_node_list(cls):
@@ -1068,18 +1028,18 @@ class Node():
     def plot(self, ax, lw_scale=1):
         coor = self.coor
         #ax.plot(*coor, '.', color='k')
-        if self.text is not None:
+        if self.plotted:
 #            ax.text(*self.coor, self.text, 
 #                verticalalignment='center', 
 #                horizontalalignment='center',
 #                bbox={'facecolor':'white'})
-            if self.kind == E:
-                size = 0.2
-                line = np.array([[0, 0], [size, size]])
-                line = line + coor
-                ax.plot(*pt_to_xy(line), color='k')
-                ax.text(*(line[1]), self.text, va = 'bottom', ha='left')
-            if self.kind == G:
+#            if self.kind == E:
+#                size = 0.2
+#                line = np.array([[0, 0], [size, size]])
+#                line = line + coor
+#                ax.plot(*pt_to_xy(line), color='k')
+#                ax.text(*(line[1]), self.text, va = 'bottom', ha='left')
+            if self.name[0] == 'G':
                 size = 0.2
                 size_small = 0.05
                 line = np.array([[0, 0], [size, -size], [size+size_small, -size+size_small], [size-size_small, -size-size_small]])#, [size-size_small,  -size-size_small], [size, -size]])
@@ -1094,10 +1054,14 @@ class Node():
 class Hole():
     hole_list = []
     hole_val = {}
-    def __init__(self, name, val, text=None):
+    def __init__(self, name, val, text=None, parent=None, color=None, circuit=None):
         print(Hole.hole_val)
         self.name = name
+        self.parent = parent
+        self.children = []
+        self.circuit=circuit
         self.val = val
+        self.color=color
         if text is None:
             self.text=name
         else:
@@ -1118,8 +1082,11 @@ class Hole():
 
     @val.setter
     def val(self, val):
-        Hole.hole_val[self.name]=val
+        for hole in self.children:
+            hole.val = val
         self.__val = val
+        if self.circuit is not None:
+            self.circuit.holes_val[self.name] = val
         
     def assign_kind(self):
         name = self.name
@@ -1128,11 +1095,17 @@ class Hole():
         if name[0]=='M':
             self.kind = M
             
-    def assign_coor(self, coor):
-        print('coor')
-        print(coor)
-        self.coor = coor
-        Hole.hole_list.append(self)
+    def copy_hole(self, circuit=None):
+        child = Hole(self.name, self.val, color=self.color, parent=self, circuit=circuit)
+        self.children.append(child)
+        return child
+    
+    def assign_coor(self, circuit, coor):
+        # create a hole each time one assigns a coordinate 
+        hole = self.copy_hole(circuit=circuit)
+        circuit.holes.append(hole)
+        hole.coor = coor
+        return hole
     
     def plot(self, ax, lw_scale=1):
         if self.kind==F:
@@ -1264,13 +1237,14 @@ class Hole():
 class Representation():
     # represents a subset of dipoles and nodes
     
-    def __init__(self, kind, dipoles):
+    def __init__(self, kind, circuit, dipoles):
         self.dipoles = dipoles
+        self.circuit = circuit
         
         if kind=='raw':
-            self.nodes = Node.node_list
+            self.nodes = circuit.nodes
         elif kind=='equ':
-            self.nodes = Node.eq_node_list
+            self.nodes = circuit.eq_nodes
         else:
             raise ValueError("For Representation(), 'kind' should be in ['raw', 'equ']")
         self.ker = None
@@ -1285,7 +1259,7 @@ class Representation():
             dipole_in_ker = [elt>0 for elt in np.abs(self.ker).sum(axis=0)] # is a given dipole used in loops
             filtre = [(dipole_in_ker[ii] and dipole.kind!=W) for ii, dipole in enumerate(self.dipoles)]
             dipoles = [dipole for ii, dipole in enumerate(self.dipoles) if filtre[ii]]
-            rep = Representation('equ', dipoles)
+            rep = Representation('equ', self.circuit, dipoles)
             ker_new = []
             for loop in self.ker:
                 ker_new.append(loop[filtre])
@@ -1296,7 +1270,7 @@ class Representation():
             # basically when constructing ker should take in consideration preexisting one
             # in this case filtre must not be used
         else: 
-            rep = Representation('equ', None)
+            rep = Representation('equ', self.circuit, None)
         return rep
     
     def build_A(self):
@@ -1304,7 +1278,8 @@ class Representation():
         columns=[]
         for dipole in self.dipoles:
             column = np.zeros(nN)
-            node_start, node_end = Dipole.dipoles_nodes[dipole]
+            node_start, node_end = self.circuit.dipoles_nodes[dipole]
+            print(self.nodes)
             index_start = self.nodes.index(node_start.eq_node())
             index_end = self.nodes.index(node_end.eq_node())
             column[index_start]=-1
@@ -1364,9 +1339,10 @@ class Representation():
         for jj, loop in enumerate(self.ker):
             self.associated_phiext.append([])
             dipole_loop = [self.dipoles[ii] for ii in np.where(loop)[0]]
-            for hole in Hole.hole_list:
+            for hole in self.circuit.holes:
                 if hole_in_loop(hole, dipole_loop):
                     self.associated_phiext[jj].append(hole)
+
                     
 #    def build_I_DC_nodes(self):
 #        list_res=[[] for k in range(len(self.nodes))] 
@@ -1390,7 +1366,13 @@ class Representation():
         vec=[]
         for (ii, elt) in enumerate(self.dipoles):
             if elt.kind==I:
-                vec.append(elt.val)
+                for val in elt.val:
+                    if val[1]==0:
+                        current_DC=val[0]
+                        break
+                else:
+                    'Print no DC current in %s'%(elt.name)
+                vec.append(current_DC)
             else:
                 vec.append(0)
         self.vec_I_DC=vec
@@ -1432,7 +1414,7 @@ class Representation():
     def eval_f(self):
         f_eval = []
         for elt in self.f:
-            f_eval.append(eval(elt, Hole.hole_val))
+            f_eval.append(eval(elt, self.circuit.holes_val))
         self.f_eval = np.array(f_eval)
 #    
 #    def eval_I_DC_nodes(self):
@@ -1464,6 +1446,11 @@ class Representation():
 #        print(self.oL_mat)
 #        print(self.oJ_mat)
         return np.sum(1/2*self.oL_mat@phi_vec**2-self.oJ_mat@np.cos(phi_vec)) + (phi_vec.T @ self.vec_I_DC)/phi0
+
+    def current(self, gamma_vec): # pendant of U for current conservation
+        phi_vec = self.F @ gamma_vec + self.f_eval
+        current = np.diag(self.oL_mat).T*phi_vec+np.diag(self.oJ_mat)*np.sin(phi_vec) + np.array(self.vec_I_DC)/phi0 # branch current vec
+        return np.delete(self.A @ current, 0, axis=0) # should be 0 vector when solved
 
     def solve_DC(self, guess=None, verbose=True, debug=False):
         
@@ -1505,6 +1492,28 @@ class Representation():
             if debug:
                 if n_gamma==1:
                     ax.plot(gamma_vec_sol[0], self.U(gamma_vec_sol), '.')
+                    
+            if verbose:    
+                print('')
+                print('Res from minimization')
+                print('Gamma vec sol')
+                print(self.independant_dipoles)
+                print(gamma_vec_sol)
+                print('Node currents')
+                print(self.current(gamma_vec_sol))
+            
+            res = root(self.current, gamma_vec_sol)
+            gamma_vec_sol = np.array(res.x)
+            
+            if verbose:    
+                print('')
+                print('Res from current law')
+                print('Gamma vec sol')
+                print(self.independant_dipoles)
+                print(gamma_vec_sol)
+                print('Node currents')
+                print(self.current(gamma_vec_sol))
+                
             phi_vec_sol = self.F@gamma_vec_sol + self.f_eval
             for ii, dipole in enumerate(self.dipoles):
                 dipole.phi_DC = phi_vec_sol[ii]
@@ -1515,7 +1524,7 @@ class Representation():
                 print('Gamma sol')
                 print(gamma_vec_sol)
             return gamma_vec_sol
-        
+
     def build_current_mat(self, omega):
         n_phi = len(self.dipoles)
         current_mat = np.zeros((n_phi, n_phi), dtype=complex)
@@ -1541,7 +1550,6 @@ class Representation():
                     current_mat[ii, ii]=prefact*np.cos(omega*dipole.val[0])
                 counter_T+=1
         self.current_mat=current_mat
-
         
     def mag_energy(self, omega, phi):
         energy = 0
@@ -1607,12 +1615,9 @@ class Representation():
         return energy
         
     def eom(self, omega):
-        print('eom')
         self.build_current_mat(omega)
         eom_mat = self.A@self.current_mat@self.F   
-        print(eom_mat)
         eom_mat = np.delete(eom_mat, 0, axis=0) #delete ground equation of motion
-        print(eom_mat)
         return eom_mat
     
     def det_eom(self, omega): # take a single omega or several
@@ -1637,14 +1642,14 @@ class Representation():
                 if counter_T%2==0:
                     to_return = to_return*np.sin(omega*dipole.val[0])
                 counter_T+=1
-        print('det_eom_called')
-        print('omega val '+str(omega))
-        print('res '+str(to_return))
+#        print('det_eom_called')
+#        print('omega val '+str(omega))
+#        print('res '+str(to_return))
         return to_return
     
     def display_eom(self, ax, omegas, kappas=None, guesses=None):
         if not(guesses is None):
-            eig_omegas, eig_phizpfs = self.solve_AC(guesses, verbose=False)
+            eig_omegas, eig_phizpfs = self.solve_EIG(guesses, verbose=False)
         if kappas is None:
             dets = self.det_eom(omegas)
             ax.plot(omegas/2/np.pi, np.abs(dets))
@@ -1671,12 +1676,12 @@ class Representation():
         phi = self.F @ gamma
         return phi#, gamma
     
-    def solve_AC(self, guesses, verbose=True): 
+    def solve_EIG(self, guesses, verbose=True): 
         if verbose:
             print('')
-            print('################')
-            print('### Solve AC ###')
-            print('################')
+            print('#################')
+            print('### Solve EIG ###')
+            print('#################')
             print('')
 
         eig_omegas = []
@@ -1712,12 +1717,41 @@ class Representation():
         return np.array(eig_omegas), np.array(eig_phizpfs)#, np.array(eig_gammazpfs)
     
     def plot_phi(self, ax, phi, offset=0.3, color='k'):
-        counter = 0
         for ii, dipole in enumerate(self.dipoles):
             if dipole.kind!=T:
-                dipole.plot_arrow(ax, phi[ii], offset=offset, color=color)
-
-#    @classmethod
+                dipole.plot_arrow(ax, phi[ii], offset=offset, color=color)    
+        
+    def solve_AC(self, method='linear', verbose=True):
+        
+        if verbose:
+            print('')
+            print('#################')
+            print('### Solve AC ###')
+            print('#################')
+            print('')
+            
+        if method=='linear':
+            # spirit solve separately the different frequency components of 
+            # current sources:
+            phi = [] # store each solution
+            for dipole in self.dipoles:
+                if dipole.kind == I:
+                    for val in dipole.val: # val is : amp, freq, phase
+                        if val[1]!=0:
+                            vec_I_AC = np.array([val[0]/2*np.exp(1j*val[2])/phi0 if dipole==dpl else 0 for dpl in self.dipoles])
+                            vec_Igamma_AC = vec_I_AC@self.F
+                            eom_AC = self.eom(val[1])
+                            sol_gamma = -nl.inv(eom_AC)@vec_Igamma_AC
+                            if verbose:
+                                print('vec_Igamma_AC')
+                                print(vec_Igamma_AC)
+                                print('eom_AC')
+                                print(eom_AC)
+                                print('sol_gamma')
+                                print(sol_gamma)    
+                                
+                            phi.append(self.F@sol_gamma)
+            return np.sum(np.array(phi), axis=0) 
 #    def print_dipoles_nodes(cls):
 #        for dipole, nodes in cls.dipoles_nodes.items():
 #            print('%s - from %s to %s'%(dipole.name, nodes[0], nodes[1]))
@@ -1799,29 +1833,36 @@ class Circuit(object):
 #        Source_DC.source_DC_nodes={}
 #        Source_DC.source_DC_val={}
         #we do not put the val Dipole.val and Holes.val to empty because we do not need this.
-        Dipole.empty_dipole_list()
-        Node.empty_node_list()
-        Hole.empty_hole_list()
-        print('Begining')
-        print(Dipole.dipole_list)
         self.circuit_array = circuit_array
         
+        # store dipoles
+        self.dipoles = [] # contains the copied dipoles
+        self.dipoles_val = {}
+        self.dipoles_DC = []
+        self.dipoles_AC = []
+        
+        # store nodes
+        self.nodes = [] # contains the copied nodes
+        self.nodes_val = {}
+        self.eq_nodes = []
+        self.eq_nodes_dict = {}
+        
+        #store holdes
+        self.holes = [] # contains the copied holes
+        self.holes_val = {}
+        
         self.parse()
-                
-        print('After parse')
-        print(Dipole.dipole_list)
-        print(Node.node_list)
-        print(Hole.hole_list)
-#        print(Source_DC.source_DC_list)
-        Dipole.build_dipoles_nodes()
-#        Source_DC.build_sources_nodes()
 
-        self.rep_raw_DC = Representation('raw', Dipole.dipole_list_DC) # should occur before equivalent nodes
+        # store match dipoles and nodes
+        self.dipoles_nodes = {}
+        self._build_dipoles_nodes()
+
+
+        self.rep_raw_DC = Representation('raw', self, self.dipoles_DC) # should occur before equivalent nodes
         self.rep_raw_DC.find_loops()
         self.rep_raw_DC.associate_loop_with_phiext()
-        Node.equivalent_nodes()
-        print(Dipole.dipole_list)
-        
+        self._equivalent_nodes()
+
         
         self.rep_DC = self.rep_raw_DC.convert_raw_to_eq()
         self.rep_DC.build_constrain('DC')
@@ -1829,7 +1870,7 @@ class Circuit(object):
         # Be careful one should make any superconducting loop explicit for now
         # Now solve DC representation
 
-        self.rep_AC = Representation('equ', Dipole.dipole_list_AC)
+        self.rep_AC = Representation('equ', self, self.dipoles_AC)
         print('dipoles AC')
         print(self.rep_AC.dipoles)
         print('nodes AC')
@@ -1840,7 +1881,7 @@ class Circuit(object):
         self.rep_AC.build_constrain('AC')
    
     def parse(self,):
-        self.plotted_elt = []
+        self.plotted_elt = set()
         circuit = self.circuit_array
         for jj, line in enumerate(circuit):
             for ii, elt in enumerate(line):
@@ -1849,22 +1890,60 @@ class Circuit(object):
                 else:
                     if jj%2==0: # can be node or horizontal dipole or a source DC I horizontal
                         if ii%2==0: # it is a node
-                            elt = elt.assign_coor(array_to_plot((jj, ii)))
+                            elt.assign_coor(self, array_to_plot((jj, ii))) # the circuit is passed as a first argument
                         else: # it is a dipole horizontal or a source DC I horizontal
-                                elt = elt.assign_coor(array_to_plot((jj, ii-1)), array_to_plot((jj, ii+1)))
+                            elt.assign_coor(self, array_to_plot((jj, ii-1)), array_to_plot((jj, ii+1)))
                     else: # can be a vertical dipole or a flux
                         if ii%2==0: # it is a vertical dipole or a source DC I horizontal
-                            elt = elt.assign_coor(array_to_plot((jj+1, ii)), array_to_plot((jj-1, ii)))
+                            elt.assign_coor(self, array_to_plot((jj+1, ii)), array_to_plot((jj-1, ii)))
                         else: # it is a flux
-                            elt.assign_coor(array_to_plot((jj, ii)))
-                    self.plotted_elt.append(elt)
+                            elt.assign_coor(self, array_to_plot((jj, ii)))
+                    self.plotted_elt.add(elt)
+        # give relevant names to child dipoles
+#        for elt in self.plotted_elt:
+#            print(elt)
+#            if len(elt.children)>1:
+#                for ii, child in enumerate(elt.children):
+#                    child.name = elt.name+'%d'%ii
+#            elif len(elt.children)==1:
+#                elt.children[0].name = elt.name
+#            else:
+#                pass
+#        
+
+        print(self.dipoles)
+
+        name_elements(self.dipoles)
+
+        print(self.dipoles)
+                
+        dipoles = [dipole for dipole in self.dipoles]
+        for dipole in dipoles:
+            dipole.fill_dipoles()
+            
+        print(self.dipoles)
+        
+        name_elements(self.nodes)
+        name_elements(self.holes)
+        
+        self.update_vals()
+    
+    def update_vals(self):
+        for dipole in self.dipoles:
+            self.dipoles_val[dipole.name]=dipole.val        
+        for hole in self.holes:
+            self.holes_val[hole.name]=hole.val 
 
     def plot(self, ax, debug=False, lw_scale=1):
         if not debug:
             ax.axis('off')
         ax.set_xlim(-1, len(self.circuit_array[0]))
         ax.set_ylim(-len(self.circuit_array), 1)
-        for elt in self.plotted_elt:
+        for elt in self.dipoles:
+            elt.plot(ax, lw_scale=lw_scale)
+        for elt in self.nodes:
+            elt.plot(ax, lw_scale=lw_scale)
+        for elt in self.holes:
             elt.plot(ax, lw_scale=lw_scale)
         ax.set_aspect('equal')
 
@@ -1894,7 +1973,68 @@ class Circuit(object):
             list_eig_phizpfs.append(eig_phizpfs)
         return np.array(list_eig_omegas).T, list_eig_phizpfs#np.array(list_eig_phizpfs).T
 
+    def _build_dipoles_nodes(self):
+        for dipole in self.dipoles:
+            for node in self.nodes:
+                if (node.coor==dipole.start).all():
+                    node0 = node
+                elif (node.coor==dipole.end).all():
+                    node1 = node
+            self.dipoles_nodes[dipole] = [node0, node1] # this dict map a dipole to a pair of nodes
 
+    def _equivalent_nodes(self):
+
+        node_pairs = []
+        for dipole in self.dipoles: # each time dipole is wire, the pair consist of equivalent nodes
+            if dipole.kind==W:
+                node_pairs.append(self.dipoles_nodes[dipole].copy())
+
+        parents = []
+        node_groups = []
+        for node in self.nodes: # each node with same parent are equivalent 
+            parent = node.parent
+            if parent.name!='':
+                if parent not in parents:
+                    parents.append(parent)
+                    node_groups.append([node])
+                else:
+                    index = parents.index(parent)
+                    node_groups[index].append(node)
+                    
+        node_pairs += node_groups
+        count = 0
+        while count<len(node_pairs): # find the most general equivalent groups
+            pair = node_pairs.pop(count)
+            for ii, group in enumerate(node_pairs[count:]):
+                if any([elt in group for elt in pair]):
+                    node_pairs[ii+count]+=pair # fusionner la paire avec le groupe
+                    break
+            else:
+                node_pairs = [pair]+node_pairs
+                count +=1
+
+        for group in node_pairs:
+            # The reference node is either the one with a name or the most common one
+            list_bool = [(elt.kind==G or elt.kind==E) for elt in group]
+            if any(list_bool):
+                ref = group[list_bool.index(True)]
+            else:
+                ref = max(set(group), key=group.count)
+            print(ref, group)
+            for node in group:
+                self.eq_nodes_dict[node]=ref
+                
+        eq_nodes = list(set(self.eq_nodes_dict.values()))
+        print(self.eq_nodes_dict)
+        print(eq_nodes)
+        # put ground first
+        list_bool = [elt.name[0]=='G' for elt in eq_nodes]
+        if any(list_bool):
+            ground = eq_nodes.pop(list_bool.index(True))
+            eq_nodes = [ground] + eq_nodes   
+            
+        self.eq_nodes = eq_nodes
+            
     def sweep_2_params(self,elt_1,vals_1,elt_2,vals_2,guesses):
         matrix_eig_omegas = []
 #        matrix_eig_phizpfs =[]
