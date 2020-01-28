@@ -1368,11 +1368,11 @@ class Representation():
             if elt.kind==I:
                 for val in elt.val:
                     if val[1]==0:
-                        current_DC=val[0]
+                        vec.append(val[0])
                         break
                 else:
-                    'Print no DC current in %s'%(elt.name)
-                vec.append(current_DC)
+                    print('Print no DC current in %s'%(elt.name))
+                    vec.append(0)
             else:
                 vec.append(0)
         self.vec_I_DC=vec
@@ -1445,11 +1445,11 @@ class Representation():
 #        print(phi_vec)
 #        print(self.oL_mat)
 #        print(self.oJ_mat)
-        return np.sum(1/2*self.oL_mat@phi_vec**2-self.oJ_mat@np.cos(phi_vec)) + (phi_vec.T @ self.vec_I_DC)/phi0
+        return np.sum(1/2*self.oL_mat@phi_vec**2-self.oJ_mat@np.cos(phi_vec)) + phi_vec.T @ self.vec_I_DC
 
     def current(self, gamma_vec): # pendant of U for current conservation
         phi_vec = self.F @ gamma_vec + self.f_eval
-        current = np.diag(self.oL_mat).T*phi_vec+np.diag(self.oJ_mat)*np.sin(phi_vec) + np.array(self.vec_I_DC)/phi0 # branch current vec
+        current = np.diag(self.oL_mat).T*phi_vec+np.diag(self.oJ_mat)*np.sin(phi_vec) + np.array(self.vec_I_DC) # branch current vec
         return np.delete(self.A @ current, 0, axis=0) # should be 0 vector when solved
 
     def solve_DC(self, guess=None, verbose=True, debug=False):
@@ -1549,7 +1549,7 @@ class Representation():
                     current_mat[ii, ii-1]=prefact*(-1)
                     current_mat[ii, ii]=prefact*np.cos(omega*dipole.val[0])
                 counter_T+=1
-        self.current_mat=current_mat
+        return current_mat
         
     def mag_energy(self, omega, phi):
         energy = 0
@@ -1615,10 +1615,10 @@ class Representation():
         return energy
         
     def eom(self, omega):
-        self.build_current_mat(omega)
-        eom_mat = self.A@self.current_mat@self.F   
+        cur_mat = self.build_current_mat(omega)
+        eom_mat = self.A @ cur_mat @ self.F
         eom_mat = np.delete(eom_mat, 0, axis=0) #delete ground equation of motion
-        return eom_mat
+        return eom_mat, cur_mat
     
     def det_eom(self, omega): # take a single omega or several
         if isinstance(omega, np.ndarray):
@@ -1635,7 +1635,8 @@ class Representation():
                 return dets
             else:
                 raise ValueError('det_eom Cannot handle arrays with more than 2 dim')
-        to_return = nl.det(self.eom(omega))
+        eom_mat, cur_mat = self.eom(omega)
+        to_return = nl.det(eom_mat)
         counter_T = 0
         for ii, dipole in enumerate(self.dipoles):
             if dipole.kind==T:
@@ -1671,7 +1672,8 @@ class Representation():
             ax.set_ylabel(r'$\kappa/2\pi$')
     def eig_phi(self, omega): # return the eig vector with smallest eigenvalue (expected 0)
                               # at a given frequency
-        e, v = nl.eig(self.eom(omega))
+        eom_mat, cur_mat = self.eom(omega)                      
+        e, v = nl.eig(eom_mat)
         gamma = v.T[np.argmin(np.abs(e)**2)]
         phi = self.F @ gamma
         return phi#, gamma
@@ -1725,33 +1727,46 @@ class Representation():
         
         if verbose:
             print('')
-            print('#################')
+            print('################')
             print('### Solve AC ###')
-            print('#################')
+            print('################')
             print('')
             
         if method=='linear':
             # spirit solve separately the different frequency components of 
             # current sources:
-            phi = [] # store each solution
+            phis = [] # store each solution
             for dipole in self.dipoles:
                 if dipole.kind == I:
+                    if verbose:
+                        print('')
+                        print(str(dipole)+':')
                     for val in dipole.val: # val is : amp, freq, phase
                         if val[1]!=0:
-                            vec_I_AC = np.array([val[0]/2*np.exp(1j*val[2])/phi0 if dipole==dpl else 0 for dpl in self.dipoles])
-                            vec_Igamma_AC = vec_I_AC@self.F
-                            eom_AC = self.eom(val[1])
-                            sol_gamma = -nl.inv(eom_AC)@vec_Igamma_AC
                             if verbose:
-                                print('vec_Igamma_AC')
-                                print(vec_Igamma_AC)
-                                print('eom_AC')
-                                print(eom_AC)
-                                print('sol_gamma')
-                                print(sol_gamma)    
-                                
-                            phi.append(self.F@sol_gamma)
-            return np.sum(np.array(phi), axis=0) 
+                                print('val '+str(val))
+                            vec_I_AC = np.array([val[0]/2*np.exp(1j*val[2]) if dipole==dpl else 0 for dpl in self.dipoles])
+                            vec_Igamma_AC = vec_I_AC@self.F
+                            eom_mat, cur_mat = self.eom(val[1])
+                            sol_gamma = -nl.inv(eom_mat)@vec_Igamma_AC
+#                            if verbose:
+#                                print('vec_Igamma_AC')
+#                                print(vec_Igamma_AC)
+#                                print('eom_mat')
+#                                print(eom_mat)
+#                                print('sol_gamma')
+#                                print(sol_gamma)    
+                            sol_phi = self.F@sol_gamma
+                            sol_current_branch = cur_mat @ sol_phi
+                            sol_current_node = self.A @ sol_current_branch
+                            if verbose:
+                                print(self.dipoles)
+                                print(sol_current_branch)
+                                print(self.nodes)
+                                print(sol_current_node)
+                                print('')
+                            phis.append(self.F@sol_gamma)
+            return np.sum(np.array(phis), axis=0) 
 #    def print_dipoles_nodes(cls):
 #        for dipole, nodes in cls.dipoles_nodes.items():
 #            print('%s - from %s to %s'%(dipole.name, nodes[0], nodes[1]))
@@ -1960,7 +1975,7 @@ class Circuit(object):
                 guess_DC = self.rep_DC.solve_DC(guess=guess_DC, verbose=False)
                 print('guess_DC')
             try:
-                eig_omegas, eig_phizpfs = self.rep_AC.solve_AC(current_guesses, verbose=False)
+                eig_omegas, eig_phizpfs = self.rep_AC.solve_EIG(current_guesses, verbose=False)
 #                print('solved')
 #                print(eig_omegas)
             except Exception:
