@@ -446,7 +446,7 @@ class Dipole():
     dipoles_nodes = {}
     n_wire = 0
     
-    def __init__(self, name, val=None, text=None, color='k', phi=None, colorbis=None):
+    def __init__(self, name, val=None, text=None, color='k', phi=None, colorbis=None, size=1):
         # kind should be in 'C', 'L', 'R', 'J', 'T'
         self.name = name
         self.assign_kind()
@@ -464,6 +464,7 @@ class Dipole():
             self.text=text
         self.color=color
         self.colorbis=colorbis
+        self.size = size
         if phi is not None:
             self.arrow = True
             self.phi_text = phi
@@ -728,7 +729,7 @@ class Dipole():
             ax.add_artist(art)
     
     def draw_capa(self, ax, lw_scale=1):
-        size = 0.2
+        size = 0.2*self.size
     #    plt.rc('lines', color='k', lw=2)
         
         _plate1 = np.array([[-size/3, -size], [-size/3, size]])
@@ -745,13 +746,13 @@ class Dipole():
         _line1 = _line1 + self.center
         _line2 = _line2 + self.center
         
-        plate1 = Line2D(*pt_to_xy(_plate1), lw=4*lw_scale, solid_capstyle='butt')
+        plate1 = Line2D(*pt_to_xy(_plate1), lw=4*lw_scale*self.size, solid_capstyle='butt')
         line1 = Line2D(*pt_to_xy(_line1))
         if self.colorbis is not None:
-            plate2 = Line2D(*pt_to_xy(_plate2), lw=4*lw_scale, solid_capstyle='butt', color=self.colorbis)
+            plate2 = Line2D(*pt_to_xy(_plate2), lw=4*lw_scale*self.size, solid_capstyle='butt', color=self.colorbis)
             line2 = Line2D(*pt_to_xy(_line2), color=self.colorbis)
         else:
-            plate2 = Line2D(*pt_to_xy(_plate2), lw=4*lw_scale, solid_capstyle='butt')
+            plate2 = Line2D(*pt_to_xy(_plate2), lw=4*lw_scale*self.size, solid_capstyle='butt')
             line2 = Line2D(*pt_to_xy(_line2))
             
         artists = [line1, line2, plate1, plate2]
@@ -790,7 +791,7 @@ class Dipole():
         line_sin = Line2D(*pt_to_xy(_line_sin))
         
         circle = Circle(_circle_center, radius=size, fc='none', ec = self.color, lw=2*lw_scale)
-        artists = [line1, line2, line_sin, circle, arrow_line, arrow_head]
+        artists = [line1, line2, line_sin, circle]#, arrow_line, arrow_head]
         for art in artists:
             ax.add_artist(art)
             
