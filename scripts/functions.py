@@ -582,7 +582,7 @@ class Dipole():
     
     def fill_dipoles(self):
 
-        if self.kind in [L, J, T, W, I, V]:
+        if self.kind in [L, J, W, I, V]:
             self.circuit.dipoles_DC.append(self)
             
         if self.kind in [T]:
@@ -700,7 +700,7 @@ class Dipole():
 
     #        line_xy = pt_to_xy(line)
     #        ax.plot(*line_xy, color='red', lw=4)
-            print(size)
+#            print(size)
             ax.annotate('', xy=line[1], xytext=line[0], arrowprops=dict(arrowstyle="->, head_length=%f,head_width=%f"%(np.abs(size/3), np.abs(size/3)), color=color))
             if self.horiz:
                 if offset>0:
@@ -1049,6 +1049,7 @@ class Node():
                 dot = dot + coor
                 ax.plot(*pt_to_xy(line), color=self.color)
                 ax.plot(*pt_to_xy(dot), '.', color=self.color, markersize=2*lw_scale)
+        ax.text(coor[0], coor[1], self.name, color='k', fontsize=6, va='bottom', ha='left')
 
 
 class Hole():
@@ -1269,6 +1270,8 @@ class Representation():
             # TODO should add the other loops that appear when making the nodes equivalents
             # basically when constructing ker should take in consideration preexisting one
             # in this case filtre must not be used
+            
+            # TODO: Add filtering of the nodes
         else: 
             rep = Representation('equ', self.circuit, None)
         return rep
@@ -1296,18 +1299,23 @@ class Representation():
                 dipole.plot_arrow(ax, size=1)
     
     def find_loops(self): # returns loops in trigo way
-        if self.ker is None:
-            ker = find_ker(self.A)
-            # now we need to orient them
-            for ii, loop in enumerate(ker):
-                if not self.trigo(loop):
-                    ker[ii]=-loop
-            self.ker = ker
-        
-        # printing
-        for loop in self.ker:     
-            self.print_loop(loop)
-        print('')
+        if len(self.A)!=0:
+            if self.ker is None:
+                ker = find_ker(self.A)
+                # now we need to orient them
+                for ii, loop in enumerate(ker):
+                    if not self.trigo(loop):
+                        ker[ii]=-loop
+                self.ker = ker            
+            
+            # printing
+            for loop in self.ker:     
+                self.print_loop(loop)
+            print('')
+            return True
+        else:
+            print('No DC loops')
+            return False
         
     def trigo(self, loop): # check if loops rotate in trigo way
         indices = np.where(loop)[0]
@@ -1501,10 +1509,14 @@ class Representation():
                 print(gamma_vec_sol)
                 print('Node currents')
                 print(self.current(gamma_vec_sol))
-            
+                
+            print(self.dipoles)
+            print(self.nodes)
+            print(gamma_vec_sol)
+            print(self.A)
             res = root(self.current, gamma_vec_sol)
             gamma_vec_sol = np.array(res.x)
-            
+                        
             if verbose:    
                 print('')
                 print('Res from current law')
@@ -1661,15 +1673,30 @@ class Representation():
             ax.set_xlabel(r'$\omega/2\pi$')
             ax.set_ylabel(r'$\|Det(\omega)|$')
         else:
+            kappa_min = kappas[0]
+            kappa_max = kappas[-1]
+            log_kappa_min = np.log(kappa_min)
+            log_kappa_max = np.log(kappa_max)
+            n_kappa = len(kappas)
+            log_kappas = np.linspace(log_kappa_min, log_kappa_max, n_kappa)
+            kappas = np.exp(log_kappas)
             _omegas, _kappas = np.meshgrid(omegas, kappas)
             Omegas = _omegas+1j*_kappas/2
             dets = self.det_eom(Omegas)
             ax.imshow(np.log(np.abs(dets)), aspect='auto', extent=[omegas[0]/2/np.pi, omegas[-1]/2/np.pi, kappas[0]/2/np.pi, kappas[-1]/2/np.pi], origin='lower')#, aspect='equal'
             if not(guesses is None):
                 for ii, eig_omega in enumerate(eig_omegas):
-                    ax.plot(np.real(eig_omega)/2/np.pi, 2*np.imag(eig_omega)/2/np.pi, 'o', color='C%d'%ii, markeredgecolor='w')
+                    kappa = 2*np.imag(eig_omega)
+                    omega = np.real(eig_omega)
+                    if kappa>kappa_min and kappa<kappa_max:
+                        ax.plot(omega/2/np.pi, kappa/2/np.pi, 'o', color='C%d'%ii, markeredgecolor='w')
+                    elif kappa<kappa_min:
+                        ax.plot(omega/2/np.pi, kappa_min/2/np.pi, 'v', color='C%d'%ii, markeredgecolor='w')
+                    else:
+                        ax.plot(omega/2/np.pi, kappa_max/2/np.pi, '^', color='C%d'%ii, markeredgecolor='w')
             ax.set_xlabel(r'$\omega/2\pi$')
             ax.set_ylabel(r'$\kappa/2\pi$')
+            ax.set_yscale('log')
     def eig_phi(self, omega): # return the eig vector with smallest eigenvalue (expected 0)
                               # at a given frequency
         eom_mat, cur_mat = self.eom(omega)                      
@@ -1690,8 +1717,9 @@ class Representation():
         eig_phizpfs = []
 #        eig_gammazpfs = []
         for guess in guesses:
-            print('Det eom for Newton routine')
-            print(self.det_eom(guess))
+            if verbose:
+                print('Det eom for Newton routine')
+                print(self.det_eom(guess))
             eig_omega = newton(self.det_eom, guess) # find nearest root -> eig_omega
             if verbose:
                 print('Mode omega/2pi:', np.real(eig_omega)/2/np.pi)
@@ -1872,16 +1900,17 @@ class Circuit(object):
         self.dipoles_nodes = {}
         self._build_dipoles_nodes()
 
-
         self.rep_raw_DC = Representation('raw', self, self.dipoles_DC) # should occur before equivalent nodes
-        self.rep_raw_DC.find_loops()
-        self.rep_raw_DC.associate_loop_with_phiext()
-        self._equivalent_nodes()
-
+        is_DC_loop = self.rep_raw_DC.find_loops()
+        if is_DC_loop:
+            self.rep_raw_DC.associate_loop_with_phiext()
         
-        self.rep_DC = self.rep_raw_DC.convert_raw_to_eq()
-        self.rep_DC.build_constrain('DC')
-        self.rep_DC.solve_DC(debug=False)
+        self._equivalent_nodes()
+        
+        if is_DC_loop:
+            self.rep_DC = self.rep_raw_DC.convert_raw_to_eq()
+            self.rep_DC.build_constrain('DC')
+            self.rep_DC.solve_DC(debug=False)
         # Be careful one should make any superconducting loop explicit for now
         # Now solve DC representation
 
