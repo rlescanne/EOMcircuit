@@ -59,7 +59,7 @@ def simplify_arith_expr(expr):
     except Exception:
         print("Couldn't parse", expr)
         raise
-        
+
 def name_elements(elts): # gives relevant name to repeating dipoles
     parents = [elt.parent for elt in elts]
     parents_number = {}
@@ -77,14 +77,14 @@ def name_elements(elts): # gives relevant name to repeating dipoles
         else:
             elt.name = elt.name+'%d'%(parents_number[parent])
             parents_number[parent] -= 1
-        
+
 def find_ker(m): #implements Gauss elimination to find the loops in the circuit
     indices = []
     for ii, line in enumerate(m): # nodes that are connected to nothing, prevent from working
         if not(np.any(line)):
             indices.append(ii)
     m = np.delete(np.copy(m), indices, axis=0)
-    
+
     diag = np.eye(len(m[0]))
     M = np.concatenate((m, diag)).T
     rr=0
@@ -102,7 +102,7 @@ def find_ker(m): #implements Gauss elimination to find the loops in the circuit
             for ii in range(rr+1, len(M)):
                 M[ii] = M[ii]-M[ii, jj]*line
             rr+=1
-    
+
     m_trig = (M.T)[:len(m)]
     M_trig = (M.T)[len(m):]
 
@@ -110,14 +110,14 @@ def find_ker(m): #implements Gauss elimination to find the loops in the circuit
     for jj, col in enumerate(m_trig.T):
         if np.sum(col**2)==0:
             ker.append((M_trig.T)[jj])
-        
+
     return np.array(ker)
 
 def equal_float(float1, float2, margin=1e-8):
     if float1!=0 and float2!=0:
         rel_diff = abs((float1-float2)/float1)
     elif float1==0:
-        rel_diff = float2      
+        rel_diff = float2
     elif float2==0:
         rel_diff = float1
     else:
@@ -134,9 +134,9 @@ def crossing_edge_along_y(coor_point, edges_list):
             return True
     else:
         return False
-    
-    
-#def point_in_a_loop(coor_point, edges_loop): 
+
+
+#def point_in_a_loop(coor_point, edges_loop):
 #    #take the coordinate of the point and the list of the edges of the loop and returns boolean
 #    #premier pas de 1
 ##        print("########## Point in a loop #######")
@@ -158,7 +158,7 @@ def crossing_edge_along_y(coor_point, edges_list):
 #            except:
 #                inside_circuit=False
 #        return(counter%2==1)
-        
+
 def hole_in_loop(hole, dipole_loop):
     inside_circuit=True
     counter=0
@@ -168,11 +168,11 @@ def hole_in_loop(hole, dipole_loop):
     while inside_circuit:
         if crossing_edge_along_y(actual_coor, edges_loop):
             counter+=1
-        inside_circuit = actual_coor[0]>0 # when x<=0 outside circuit 
+        inside_circuit = actual_coor[0]>0 # when x<=0 outside circuit
         actual_coor+=np.array([-1, 0])
     return (counter%2==1)
-        
-        
+
+
 
 def clockwise(edges_loop, orientation_edges): # only means something if the loop is closed
                            # returns whatever when loop in not closed
@@ -193,14 +193,14 @@ def clockwise(edges_loop, orientation_edges): # only means something if the loop
                     edge_max = edge
                 else:
                     edge_max = (edge[1], edge[0])
-                
+
     if edge_max[0][0]>edge_max[1][0]:
         print('trigo')
         return 1
     else:
         print('antitrigo')
         return -1
-                           
+
 #    #runs ok if the edges are along a (O,x,y) grid
 #    #function to determine if a the loop is clockwise or anticlockwise. We take the convention to put +phi ext to clockwise loop and -phiext to anticlockwise loop.
 #    #edges_loop is a list of tuples (=edges). Each edge is a tuple of tuples (coordinates of nodes).
@@ -243,17 +243,17 @@ def clockwise(edges_loop, orientation_edges): # only means something if the loop
 #            orientation=+1
 #    else:
 #        raise ValueError('This is not a loop aligned on the (x,y) grid')
-#      
+#
 #    return(orientation)
 #orientation =+1 if clockwise
-#orientation =-1 if anticlockwise   
-    
-    
+#orientation =-1 if anticlockwise
+
+
 def contact_edges(edge1, edge2): #edge is a tuple of coordinates (tuples)
     edge1[0]==edge2[0] or edge1[0]==edge2[1] or edge1[1]==edge
     return(res)
-    
-    
+
+
 def tuple_list(n):
     _tuple_list = [tuple(range(n))]
     for ii in range(n-1):
@@ -311,7 +311,7 @@ def remove_wires(D_vec, A_T, nodes_type, nodes):
     return D_vec, A_T, nodes_type, nodes
 
 def add_dipole_for_trl(D_vec, A_T):
-    
+
     count = 0
     for ii, D_val in enumerate(D_vec):
         ii=ii+count
@@ -337,9 +337,9 @@ def add_dipole_for_trl(D_vec, A_T):
             A_T = np.insert(A_T, ii, A_line_m, axis=0)
             count += 1
     return D_vec, A_T
-    
 
-class Coor(tuple): #this class allows to avoid problems of looping indexes : it raises error if we have an index outside the circuit (instead of returning to the begining) 
+
+class Coor(tuple): #this class allows to avoid problems of looping indexes : it raises error if we have an index outside the circuit (instead of returning to the begining)
     # should be set to the size of circuit
     x_dim = 1
     y_dim = 1
@@ -349,7 +349,7 @@ class Coor(tuple): #this class allows to avoid problems of looping indexes : it 
         else:
             args = (arg for arg in args)
             return super(Coor, cls).__new__(cls, args)
-        
+
     def __add__(self, other):
         sum = []
         for ii, jj in zip(self, other):
@@ -359,19 +359,19 @@ class Coor(tuple): #this class allows to avoid problems of looping indexes : it 
         if sum[1]<0 or sum[1]>=self.x_dim:
             raise ValueError('x coor out of circuit')
         return(Coor(sum))
-    
+
     def __floordiv__(self, other):
         div = []
         for ii in self:
             div.append(ii//other)
         return(Coor(div))
-        
+
     def __truediv__(self, other):
         div = []
         for ii in self:
             div.append(ii/other)
         return(Coor(div))
-        
+
 def array_to_plot(coor):
     jj, ii = coor
     return np.array([ii, -jj])
@@ -407,12 +407,12 @@ def complete_with_identity(mat):
         print(elt)
         print(ii)
         ret_mat[elt] = mat[ii]
-    
+
     ret_mat_c = np.delete(ret_mat_c, choices, axis=1)
     if nl.matrix_rank(ret_mat)!=shape[1]:
         raise ValueError('Assigning the constrains did not produce a invertible matrix')
     return ret_mat, ret_mat_c, choices
-    
+
 def choice(maygo):
     shape = maygo.shape
     choices = [0 for ii in range(shape[0])]
@@ -461,7 +461,7 @@ def associated_string(arglist,type_string):
 #    print('res')
 #    print(to_return)
 #    return to_return
-        
+
 def matrix_product_str(mat, vec):
     # mat is float
     # vec is string
@@ -474,14 +474,14 @@ def matrix_product_str(mat, vec):
     return to_return
 
 class Dipole():
-    
+
     dipole_list = []
     dipole_list_DC = []
     dipole_list_AC = []
     dipole_val = {}
     dipoles_nodes = {}
     n_wire = 0
-    
+
     def __init__(self, name, val=None, text=None, color='k', phi=None, colorbis=None, parent=None, ground=None, plotted=True, circuit=None):
         # kind should be in 'C', 'L', 'R', 'J', 'T'
         self.name = name
@@ -520,13 +520,13 @@ class Dipole():
         self.center = None
         self.phi_DC = 0 # should change with solve_DC
         self.plotted = plotted
-        
+
     def __str__(self):
         return self.name
-    
+
     def __repr__(self):
         return self.name
-    
+
     @property
     def val(self):
         return self.__val
@@ -539,7 +539,7 @@ class Dipole():
         self.__val = val
         if self.circuit is not None:
             self.circuit.dipoles_val[self.name] = val
-    
+
     def assign_kind(self):
         name = self.name
         if name[0]=='C':
@@ -560,31 +560,31 @@ class Dipole():
             self.kind = V
         if name[0]=='I':
             self.kind = I
-    
+
     def copy_dipole(self, suff='', plotted=True, circuit=None):
         child = Dipole(self.name+suff, val=self.val, text=self.text, color=self.color, phi=self.phi, colorbis=self.colorbis, parent=self, ground=self.ground, plotted=plotted, circuit=circuit)
         self.children.append(child)
         return child
-    
+
     def assign_coor(self, circuit, start, end): # used at parsing, jump when only need to create fictious dipole for AC/DC Repr
-        # this should create a dipole with the val linked to the one that 
+        # this should create a dipole with the val linked to the one that
         # was used for creation
-        
+
         dipole = self.copy_dipole(circuit=circuit)
         circuit.dipoles.append(dipole)
-        
+
         dipole.start = start
         dipole.end = end
         dipole.center = (start+end)/2
         dipole.horiz = start[1]==end[1]
-                
+
         return dipole
-    
+
     def fill_dipoles(self):
 
         if self.kind in [L, J, W, I, V]:
             self.circuit.dipoles_DC.append(self)
-            
+
         if self.kind in [T]:
             dipole_s = self.copy_dipole(suff='s', plotted=False, circuit=self.circuit)
             dipole_e = self.copy_dipole(suff='e', plotted=False, circuit=self.circuit)
@@ -597,21 +597,21 @@ class Dipole():
                 ground_e_coor = self.end+np.array([-0.5, -0.1])
             ground.assign_coor(self.circuit, ground_s_coor, plotted=False) # won't be plotted
             ground.assign_coor(self.circuit, ground_e_coor, plotted=False) # won't be plotted
-            
+
             dipole_s.start = ground_s_coor
-            dipole_s.end = self.start 
+            dipole_s.end = self.start
             dipole_s.center = (ground_s_coor+self.start)/2
             dipole_e.start = ground_e_coor
-            dipole_e.end = self.end 
+            dipole_e.end = self.end
             dipole_e.center = (ground_e_coor+self.end)/2
             dipole_s.horiz = not self.horiz
             dipole_e.horiz = not self.horiz
-            
+
             self.circuit.dipoles.append(dipole_s)
             self.circuit.dipoles.append(dipole_e)
             self.circuit.dipoles_AC.append(dipole_s)
             self.circuit.dipoles_AC.append(dipole_e)
-            
+
         if self.kind in [C, R, L, J, A, I]:
             self.circuit.dipoles_AC.append(self)
 
@@ -622,19 +622,19 @@ class Dipole():
         Dipole.dipole_list_AC = []
         Dipole.dipoles_nodes = {}
         Dipole.n_wire = 0
-        
-        
+
+
     def plot(self, ax, lw_scale):
         if self.plotted:
             plt.rc('lines', color=self.color, lw=2*lw_scale, solid_capstyle='round', dash_capstyle='round')
-    
+
             if self.horiz:
                 ha = 'center'
                 va = 'top'
             else:
                 ha = 'right'
                 va = 'center'
-            
+
             x_c, y_c = self.center
             name = self.name
             text = self.text
@@ -678,7 +678,7 @@ class Dipole():
                 if self.kind==I:
                     self.draw_I(ax, lw_scale=lw_scale)
 #        self.plot_arrow(ax)
-    
+
     def plot_arrow(self, ax, size=1, offset=0.3, color='k', text=''):
         if np.abs(size)>1e-4:
             nodes = self.circuit.dipoles_nodes[self]
@@ -716,68 +716,68 @@ class Dipole():
                 ax.text(*(center_text), text, va='center', ha=ha)
     def draw_res(self, ax, lw_scale=1):
         size = 0.15
-    
+
         theta = np.linspace(-4, 4, 17)
         y_theta = np.sin(theta*np.pi)
         x_coil = np.array([theta/12])
         y_coil = np.array([y_theta*size])
-        
+
         _line1 = np.array([[-1, 0], [x_coil[0,0], 0]])
         _line2 = np.array([[x_coil[0,-1], 0], [1, 0]])
         _res = np.concatenate((x_coil, y_coil)).T
-        
+
         if not self.horiz:
             _res = _res[:, ::-1]
             _line1 = _line1[:, ::-1]
             _line2 = _line2[:, ::-1]
-            
+
         _res = _res + self.center
         _line1 = _line1 + self.center
         _line2 = _line2 + self.center
-        
+
         res = Line2D(*pt_to_xy(_res))
         line1 = Line2D(*pt_to_xy(_line1))
         line2 = Line2D(*pt_to_xy(_line2))
-    
+
         artists = [res, line1, line2]
         for art in artists:
             ax.add_artist(art)
-    
+
     def draw_ind(self, ax, lw_scale=1):
         size = 0.15
-    
+
         theta = np.linspace(np.pi,5*2*np.pi, 101)
         x_coil = np.cos(theta)*size/2+size*theta/8
         y_coil = -np.array([np.sin(theta)*size])
         start = x_coil[0]
         end = x_coil[-1]
         x_coil = np.array([x_coil-(start+end)/2])
-        
+
         _line1 = np.array([[-1, 0], [x_coil[0,0], 0]])
         _line2 = np.array([[x_coil[0,-1], 0], [1, 0]])
         _res = np.concatenate((x_coil, y_coil)).T
-        
+
         if not self.horiz:
             _res = _res[:, ::-1]
             _line1 = _line1[:, ::-1]
             _line2 = _line2[:, ::-1]
-            
+
         _res = _res + self.center
         _line1 = _line1 + self.center
         _line2 = _line2 + self.center
-        
+
         res = Line2D(*pt_to_xy(_res))
         line1 = Line2D(*pt_to_xy(_line1))
         line2 = Line2D(*pt_to_xy(_line2))
-    
+
         artists = [res, line1, line2]
         for art in artists:
             ax.add_artist(art)
-    
+
     def draw_capa(self, ax, lw_scale=1):
         size = 0.2
     #    plt.rc('lines', color='k', lw=2)
-        
+
         _plate1 = np.array([[-size/3, -size], [-size/3, size]])
         _plate2 = np.array([[size/3, -size], [size/3, size]])
         _line1 = np.array([[-1, 0], [-size/3, 0]])
@@ -791,7 +791,7 @@ class Dipole():
         _plate2 = _plate2 + self.center
         _line1 = _line1 + self.center
         _line2 = _line2 + self.center
-        
+
         plate1 = Line2D(*pt_to_xy(_plate1), lw=4*lw_scale, solid_capstyle='butt')
         line1 = Line2D(*pt_to_xy(_line1))
         if self.colorbis is not None:
@@ -800,11 +800,11 @@ class Dipole():
         else:
             plate2 = Line2D(*pt_to_xy(_plate2), lw=4*lw_scale, solid_capstyle='butt')
             line2 = Line2D(*pt_to_xy(_line2))
-            
+
         artists = [line1, line2, plate1, plate2]
         for art in artists:
             ax.add_artist(art)
-            
+
     def draw_AC(self, ax, lw_scale=1):
         size = 0.3
         width = 0.066
@@ -812,7 +812,7 @@ class Dipole():
         x = np.linspace(-np.pi, np.pi, 21)
         sine =-np.sin(x)*size/4
         _line_sin = np.stack((x/np.pi*size/2, sine)).T
-        
+
         _circle_center = np.array([0,0])
         _line1 = np.array([[-1, 0], [-size, 0]])
         _line2 = np.array([[size, 0], [1, 0]])
@@ -829,18 +829,18 @@ class Dipole():
         _line2 = _line2 + self.center
         _circle_center = _circle_center +self.center
         _line_sin = _line_sin +  self.center
-                
+
         arrow_line = Line2D(*pt_to_xy(_arrow_line))
         arrow_head = Line2D(*pt_to_xy(_arrow_head))
         line1 = Line2D(*pt_to_xy(_line1))
         line2 = Line2D(*pt_to_xy(_line2))
         line_sin = Line2D(*pt_to_xy(_line_sin))
-        
+
         circle = Circle(_circle_center, radius=size, fc='none', ec = self.color, lw=2*lw_scale)
         artists = [line1, line2, line_sin, circle, arrow_line, arrow_head]
         for art in artists:
             ax.add_artist(art)
-            
+
     def draw_V(self, ax, lw_scale=1):
         size = 0.3
         width = 0.066
@@ -848,7 +848,7 @@ class Dipole():
 #        x = np.linspace(-np.pi, np.pi, 21)
 #        sine = np.sin(x)*size/4
 #        _line_sin = np.stack((x/np.pi*size/2, sine)).T
-#        
+#
         _circle_center = np.array([0,0])
         _line1 = np.array([[-1, 0], [-size, 0]])
         _line2 = np.array([[size, 0], [1, 0]])
@@ -867,7 +867,7 @@ class Dipole():
         _line1 = _line1 + self.center
         _line2 = _line2 + self.center
         _circle_center = _circle_center +self.center
-        
+
         line1 = Line2D(*pt_to_xy(_line1))
         line2 = Line2D(*pt_to_xy(_line2))
         plus1 = Line2D(*pt_to_xy(_plus1), solid_capstyle='butt')
@@ -878,7 +878,7 @@ class Dipole():
         artists = [line1, line2, circle, plus1, plus2, minus]
         for art in artists:
             ax.add_artist(art)
-            
+
     def draw_I(self, ax, lw_scale=1):
         size = 0.3
         width = 0.066
@@ -887,7 +887,7 @@ class Dipole():
 #        x = np.linspace(-np.pi, np.pi, 21)
 #        sine = np.sin(x)*size/4
 #        _line_sin = np.stack((x/np.pi*size/2, sine)).T
-#        
+#
         _circle_center = np.array([0,0])
         _line1 = np.array([[-1, 0], [-size, 0]])
         _line2 = np.array([[size, 0], [1, 0]])
@@ -903,7 +903,7 @@ class Dipole():
         _line1 += self.center
         _line2 += self.center
         _circle_center = _circle_center +self.center
-        
+
         arrow_line = Line2D(*pt_to_xy(_arrow_line))
         arrow_head = Line2D(*pt_to_xy(_arrow_head))
         line1 = Line2D(*pt_to_xy(_line1))
@@ -912,10 +912,10 @@ class Dipole():
         artists = [line1, line2, arrow_line, arrow_head, circle]
         for art in artists:
             ax.add_artist(art)
-            
-    def draw_jct(self, ax, lw_scale=1):    
+
+    def draw_jct(self, ax, lw_scale=1):
         size = 0.15
-        
+
         _cross1 = np.array([[-size, -size], [size, size]])
         _cross2 = np.array([[-size, size], [size, -size]])
         _line1 = np.array([[-1, 0], [1, 0]])
@@ -924,15 +924,15 @@ class Dipole():
         _cross1 = _cross1 + self.center
         _cross2 = _cross2 + self.center
         _line1 = _line1 + self.center
-        
+
         cross1 = Line2D(*pt_to_xy(_cross1), lw=4*lw_scale, solid_capstyle='butt')
         cross2 = Line2D(*pt_to_xy(_cross2), lw=4*lw_scale, solid_capstyle='butt')
         line1 = Line2D(*pt_to_xy(_line1))
-        
+
         artists = [line1, cross1, cross2]
         for art in artists:
             ax.add_artist(art)
-        
+
     def draw_trl(self, ax, lw_scale=1):
         size = 0.15
         _line0 = np.array([[-1, 0], [1, 0]])
@@ -946,27 +946,27 @@ class Dipole():
         _line0 = _line0 + self.center
         _line1 = _line1 + self.center
         _line2 = _line2 + self.center
-        
+
         line0 = Line2D(*pt_to_xy(_line0))
         line1 = Line2D(*pt_to_xy(_line1))
         line2 = Line2D(*pt_to_xy(_line2))
-        
+
         artists = [line1, line2, line0]
         for art in artists:
             ax.add_artist(art)
-    
+
     def plot_phi(self, ax):
         pass
 
 
 class Node():
-    
+
     node_list = []
     eq_node_list = []
     eq_node_dict = {}
     n_node = {}
     # node can have several coordinates
-    
+
     def __init__(self, name, color='k', parent=None, plotted=True, circuit=None):
         self.name = name
         self.assign_kind()
@@ -976,38 +976,38 @@ class Node():
         self.color= color
         self.plotted=plotted
         self.circuit=circuit
-        
+
     def __str__(self):
         return self.name
-    
+
     def __repr__(self):
         return self.name
-    
+
     def eq_node(self):
         return self.circuit.eq_nodes_dict[self]
-    
+
     def copy_node(self, plotted=True, circuit=None):
         child = Node(self.name, color=self.color, parent=self, plotted=plotted, circuit=circuit)
         self.children.append(child)
         return child
-    
+
     def assign_coor(self, circuit, coor, plotted=True):
-        # create a node each time one assigns a coordinate, maybe not for excitations 
+        # create a node each time one assigns a coordinate, maybe not for excitations
         node = self.copy_node(plotted=plotted, circuit=circuit)
         circuit.nodes.append(node)
         circuit.eq_nodes_dict[node]=node
         node.coor = coor
         return node
-        
+
     def assign_kind(self):
         name = self.name
         if name=='':
             self.kind = N
-            self.text = None        
+            self.text = None
         else:
             self.kind = E
             self.text = name
-    
+
     @classmethod
     def print_node_list(cls):
         print('Nodes:')
@@ -1015,22 +1015,22 @@ class Node():
             to_print = '%s - %s'%(node, node.coor)
             print(to_print)
         print('')
-            
-        
+
+
     @classmethod
     def empty_node_list(cls):
         cls.node_list = []
         cls.eq_node_list = []
         cls.eq_node_dict = {}
         cls.n_node = {}
-        
-        
+
+
     def plot(self, ax, lw_scale=1):
         coor = self.coor
         #ax.plot(*coor, '.', color='k')
         if self.plotted:
-#            ax.text(*self.coor, self.text, 
-#                verticalalignment='center', 
+#            ax.text(*self.coor, self.text,
+#                verticalalignment='center',
 #                horizontalalignment='center',
 #                bbox={'facecolor':'white'})
 #            if self.kind == E:
@@ -1070,10 +1070,10 @@ class Hole():
         self.assign_kind()
 #        Hole.hole_val[name]=val
         print(Hole.hole_val)
-        
+
     def __str__(self):
         return self.name
-    
+
     def __repr__(self):
         return self.name
 
@@ -1088,26 +1088,26 @@ class Hole():
         self.__val = val
         if self.circuit is not None:
             self.circuit.holes_val[self.name] = val
-        
+
     def assign_kind(self):
         name = self.name
         if name[0]=='F':
             self.kind = F
         if name[0]=='M':
             self.kind = M
-            
+
     def copy_hole(self, circuit=None):
         child = Hole(self.name, self.val, color=self.color, parent=self, circuit=circuit)
         self.children.append(child)
         return child
-    
+
     def assign_coor(self, circuit, coor):
-        # create a hole each time one assigns a coordinate 
+        # create a hole each time one assigns a coordinate
         hole = self.copy_hole(circuit=circuit)
         circuit.holes.append(hole)
         hole.coor = coor
         return hole
-    
+
     def plot(self, ax, lw_scale=1):
         if self.kind==F:
             size = 0.2
@@ -1124,17 +1124,17 @@ class Hole():
             length = 0.5
             line1 = np.array([[-width, -length], [-width, length]])+self.coor
             line2 = np.array([[width, -length], [width, length]])+self.coor
-            
+
             ax.plot(*pt_to_xy(line1), color='k', lw=2*lw_scale)
             ax.plot(*pt_to_xy(line2), color='k', lw=2*lw_scale)
-            
+
             coor_text = self.coor+np.array([0,-length-0.1])
             ax.text(*coor_text, self.text, color='k', va='top', ha='center')
 
     @classmethod
     def empty_hole_list(cls):
         Hole.hole_list = []
-        
+
 #class Source_DC():
 #    source_DC_list = []
 #    source_DC_val = {}
@@ -1152,10 +1152,10 @@ class Hole():
 #        Source_DC.source_DC_val[name]=val
 #        print(Source_DC.source_DC_val)
 #
-#     
+#
 #    def __str__(self):
 #        return self.name
-#    
+#
 #    def __repr__(self):
 #        return self.name
 #
@@ -1167,29 +1167,29 @@ class Hole():
 #    def val(self, val):
 #        Source_DC.source_DC_val[self.name]=val
 #        self.__val = val
-#        
+#
 ##    def assign_kind(self):
 ##        name = self.name
 ##        if name[0]=='F':
 ##            self.kind = F
 ##        if name[0]=='M':
 ##            self.kind = M
-#   # later maybe if the class source contais DC sources and AC sources         
-#    
+#   # later maybe if the class source contais DC sources and AC sources
+#
 #    def assign_coor(self, start, end):
 #        source=self
 #        source.start = start
 #        source.end = end
 #        source.center = (start+end)/2
-#        Source_DC.source_DC_list.append(self)  
-#        
+#        Source_DC.source_DC_list.append(self)
+#
 #    def assign_kind(self):
 #        name = self.name
 #        if name[0]=='I':
 #            self.kind = I
 #
-#    
-##for the moment, there is just a method for DC source I to plot 
+#
+##for the moment, there is just a method for DC source I to plot
 #    def plot(self, ax, lw_scale=1):
 #        size = 0.3
 #        width = 0.066
@@ -1198,7 +1198,7 @@ class Hole():
 ##        x = np.linspace(-np.pi, np.pi, 21)
 ##        sine = np.sin(x)*size/4
 ##        _line_sin = np.stack((x/np.pi*size/2, sine)).T
-##        
+##
 #        _circle_center = np.array([0,0])
 #        _line1 = np.array([[-1, 0], [-size, 0]])
 #        _line2 = np.array([[size, 0], [1, 0]])
@@ -1214,7 +1214,7 @@ class Hole():
 #        _line1 += self.center
 #        _line2 += self.center
 #        _circle_center = _circle_center +self.center
-#        
+#
 #        arrow_line = Line2D(*pt_to_xy(_arrow_line))
 #        arrow_head = Line2D(*pt_to_xy(_arrow_head))
 #        line1 = Line2D(*pt_to_xy(_line1))
@@ -1223,8 +1223,8 @@ class Hole():
 #        artists = [line1, line2, arrow_line, arrow_head, circle]
 #        for art in artists:
 #            ax.add_artist(art)
-#            
-#    @classmethod        
+#
+#    @classmethod
 #    def build_sources_nodes(cls):
 #        for source in cls.source_DC_list:
 #            for node in Node.node_list:
@@ -1233,15 +1233,15 @@ class Hole():
 #                elif (node.coor==source.end).all():
 #                    node1 = node
 #            cls.source_DC_nodes[source] = [node0, node1] # this dict map a dipole to a pair of nodes
-            
-    
+
+
 class Representation():
     # represents a subset of dipoles and nodes
-    
+
     def __init__(self, kind, circuit, dipoles):
         self.dipoles = dipoles
         self.circuit = circuit
-        
+
         if kind=='raw':
             self.nodes = circuit.nodes
         elif kind=='equ':
@@ -1252,7 +1252,7 @@ class Representation():
 #        self.I_DC_nodes=[]  #list that is the size of the node list (whether it is raw or eq list). For each node it gives the current (with sign) which is at the node
         if self.dipoles is not None:
             self.build_A()
-        
+
     def convert_raw_to_eq(self): #just for DC circuit$
         print('ker')
         print(self.ker)
@@ -1270,12 +1270,12 @@ class Representation():
             # TODO should add the other loops that appear when making the nodes equivalents
             # basically when constructing ker should take in consideration preexisting one
             # in this case filtre must not be used
-            
+
             # TODO: Add filtering of the nodes
-        else: 
+        else:
             rep = Representation('equ', self.circuit, None)
         return rep
-    
+
     def build_A(self):
         nN = len(self.nodes)
         columns=[]
@@ -1292,12 +1292,12 @@ class Representation():
 #        print(self.A)
 #        print(self.nodes)
 #        print(self.dipoles)
-            
+
     def plot_arrows(self, ax):
         for dipole in self.dipoles:
             if dipole.kind!=W:
                 dipole.plot_arrow(ax, size=1)
-    
+
     def find_loops(self): # returns loops in trigo way
         if len(self.A)!=0:
             if self.ker is None:
@@ -1306,17 +1306,17 @@ class Representation():
                 for ii, loop in enumerate(ker):
                     if not self.trigo(loop):
                         ker[ii]=-loop
-                self.ker = ker            
-            
+                self.ker = ker
+
             # printing
-            for loop in self.ker:     
+            for loop in self.ker:
                 self.print_loop(loop)
             print('')
             return True
         else:
             print('No DC loops')
             return False
-        
+
     def trigo(self, loop): # check if loops rotate in trigo way
         indices = np.where(loop)[0]
         x_max=0
@@ -1327,12 +1327,12 @@ class Representation():
             if x_max < x_center: # far most right dipole (should be a vertical dipole by construction)
                 x_max = x_center
                 index_max = index
-        
+
         if loop[index_max]==1:
             return True
         else:
             return False
-    
+
     def print_loop(self, loop):
         to_print = 'loop ['
         for ii, ori in enumerate(loop): # ori may be 0, 1, or -1
@@ -1341,7 +1341,7 @@ class Representation():
             if ori==-1:
                 to_print+= '-'+str(self.dipoles[ii])+', '
         print(to_print[:-2]+']')
-            
+
     def associate_loop_with_phiext(self):
         self.associated_phiext = [] # list (running on loops) of list of phiext
         for jj, loop in enumerate(self.ker):
@@ -1351,9 +1351,9 @@ class Representation():
                 if hole_in_loop(hole, dipole_loop):
                     self.associated_phiext[jj].append(hole)
 
-                    
+
 #    def build_I_DC_nodes(self):
-#        list_res=[[] for k in range(len(self.nodes))] 
+#        list_res=[[] for k in range(len(self.nodes))]
 #        for source in Source_DC.source_DC_list:
 #            if source in Source_DC.source_DC_nodes:
 #                couple_node=Source_DC.source_DC_nodes[source]
@@ -1362,12 +1362,12 @@ class Representation():
 #                        list_res[ii]=list_res[ii]+[(source,'+')]
 #                    elif node==couple_node[1]:
 #                        list_res[ii]=list_res[ii]+[(source,'-')]
-#        self.I_DC_nodes=list_res 
+#        self.I_DC_nodes=list_res
 #        for (jj,elt) in enumerate(self.I_DC_nodes):
 #            self.I_DC_nodes[jj]=associated_string(elt, type_string='I_DC') #we can store the information like this with strings -> easier to plot + use of function eval
-#            
-#        
-        
+#
+#
+
     def build_vec_I_DC(self):
         print('build vec I DC')
         print(self.dipoles)
@@ -1384,7 +1384,7 @@ class Representation():
             else:
                 vec.append(0)
         self.vec_I_DC=vec
-    
+
     def build_constrain(self, kind):
         print('Build constrain '+kind)
         if self.dipoles is not None:
@@ -1397,9 +1397,9 @@ class Representation():
                 constrain_mat = np.eye(n_phi)
                 reshape_mat = np.eye(n_phi)
                 choices = np.array([])
-            inv = nl.inv(constrain_mat) 
+            inv = nl.inv(constrain_mat)
             F = inv @ reshape_mat
-            
+
             self.F = F
             print(F)
             print(self.dipoles)
@@ -1418,20 +1418,20 @@ class Representation():
             print(self.vec_I_DC)
             print('Independant Dipoles')
             print(self.independant_dipoles)
-    
+
     def eval_f(self):
         f_eval = []
         for elt in self.f:
             f_eval.append(eval(elt, self.circuit.holes_val))
         self.f_eval = np.array(f_eval)
-#    
+#
 #    def eval_I_DC_nodes(self):
 #        I_DC_nodes_eval=[]
 #        for elt in self.I_DC_nodes:
 #            I_DC_nodes_eval.append(eval(elt,Source_DC.source_DC_val))
 #        self.I_DC_nodes_eval=np.array(I_DC_nodes_eval)
-            
-            
+
+
     def oL_oJ_mat(self):
         n_phi = len(self.dipoles)
         oL_mat = np.zeros((n_phi, n_phi))
@@ -1461,14 +1461,14 @@ class Representation():
         return np.delete(self.A @ current, 0, axis=0) # should be 0 vector when solved
 
     def solve_DC(self, guess=None, verbose=True, debug=False):
-        
+
         if verbose:
             print('')
             print('################')
             print('### Solve DC ###')
             print('################')
             print('')
-            
+
         if self.dipoles is not None:
             self.oL_oJ_mat()
             self.eval_f()
@@ -1500,8 +1500,8 @@ class Representation():
             if debug:
                 if n_gamma==1:
                     ax.plot(gamma_vec_sol[0], self.U(gamma_vec_sol), '.')
-                    
-            if verbose:    
+
+            if verbose:
                 print('')
                 print('Res from minimization')
                 print('Gamma vec sol')
@@ -1509,15 +1509,15 @@ class Representation():
                 print(gamma_vec_sol)
                 print('Node currents')
                 print(self.current(gamma_vec_sol))
-                
+
             print(self.dipoles)
             print(self.nodes)
             print(gamma_vec_sol)
             print(self.A)
             res = root(self.current, gamma_vec_sol)
             gamma_vec_sol = np.array(res.x)
-                        
-            if verbose:    
+
+            if verbose:
                 print('')
                 print('Res from current law')
                 print('Gamma vec sol')
@@ -1525,7 +1525,7 @@ class Representation():
                 print(gamma_vec_sol)
                 print('Node currents')
                 print(self.current(gamma_vec_sol))
-                
+
             phi_vec_sol = self.F@gamma_vec_sol + self.f_eval
             for ii, dipole in enumerate(self.dipoles):
                 dipole.phi_DC = phi_vec_sol[ii]
@@ -1562,7 +1562,7 @@ class Representation():
                     current_mat[ii, ii]=prefact*np.cos(omega*dipole.val[0])
                 counter_T+=1
         return current_mat
-        
+
     def mag_energy(self, omega, phi):
         energy = 0
         counter_T = 0
@@ -1593,7 +1593,7 @@ class Representation():
                 counter_T+=1
 #        print('energy = ', energy)
         return energy
-    
+
     def ele_energy(self, omega, phi):
         print('Electric energy computation does not work yet')
         print('This is not useful anyway')
@@ -1625,13 +1625,13 @@ class Representation():
                 counter_T+=1
         print('energy = ', energy)
         return energy
-        
+
     def eom(self, omega):
         cur_mat = self.build_current_mat(omega)
         eom_mat = self.A @ cur_mat @ self.F
         eom_mat = np.delete(eom_mat, 0, axis=0) #delete ground equation of motion
         return eom_mat, cur_mat
-    
+
     def det_eom(self, omega): # take a single omega or several
         if isinstance(omega, np.ndarray):
             if omega.ndim==1:
@@ -1659,7 +1659,7 @@ class Representation():
 #        print('omega val '+str(omega))
 #        print('res '+str(to_return))
         return to_return
-    
+
     def display_eom(self, ax, omegas, kappas=None, guesses=None):
         if not(guesses is None):
             eig_omegas, eig_phizpfs = self.solve_EIG(guesses, verbose=False)
@@ -1697,15 +1697,16 @@ class Representation():
             ax.set_xlabel(r'$\omega/2\pi$')
             ax.set_ylabel(r'$\kappa/2\pi$')
             ax.set_yscale('log')
+
     def eig_phi(self, omega): # return the eig vector with smallest eigenvalue (expected 0)
                               # at a given frequency
-        eom_mat, cur_mat = self.eom(omega)                      
+        eom_mat, cur_mat = self.eom(omega)
         e, v = nl.eig(eom_mat)
         gamma = v.T[np.argmin(np.abs(e)**2)]
         phi = self.F @ gamma
         return phi#, gamma
-    
-    def solve_EIG(self, guesses, verbose=True): 
+
+    def solve_EIG(self, guesses, verbose=True):
         if verbose:
             print('')
             print('#################')
@@ -1735,8 +1736,8 @@ class Representation():
                 print(eig_phi)
             mag = self.mag_energy(eig_omega, eig_phi) # find the magnetic energy of this configuration
             prop = (4*mag/(sci*np.real(eig_omega)))**0.5 # factor to convert the phi configuration to a phi_zpf configuration
-            phi_zpf = np.real(eig_phi)/prop  
-#            gamma_zpf = np.real(eig_gamma)/prop  
+            phi_zpf = np.real(eig_phi)/prop
+#            gamma_zpf = np.real(eig_gamma)/prop
             eig_phizpfs.append(phi_zpf)
 #            eig_gammazpfs.append(gamma_zpf)
 #            print('Mode impedance:', 1/mag/2*np.real(eig_omega)) # WRONG
@@ -1745,23 +1746,23 @@ class Representation():
                 print(self.dipoles)
                 print('')
         return np.array(eig_omegas), np.array(eig_phizpfs)#, np.array(eig_gammazpfs)
-    
+
     def plot_phi(self, ax, phi, offset=0.3, color='k'):
         for ii, dipole in enumerate(self.dipoles):
             if dipole.kind!=T:
-                dipole.plot_arrow(ax, phi[ii], offset=offset, color=color)    
-        
+                dipole.plot_arrow(ax, phi[ii], offset=offset, color=color)
+
     def solve_AC(self, method='linear', verbose=True):
-        
+
         if verbose:
             print('')
             print('################')
             print('### Solve AC ###')
             print('################')
             print('')
-            
+
         if method=='linear':
-            # spirit solve separately the different frequency components of 
+            # spirit solve separately the different frequency components of
             # current sources:
             phis = [] # store each solution
             for dipole in self.dipoles:
@@ -1783,7 +1784,7 @@ class Representation():
 #                                print('eom_mat')
 #                                print(eom_mat)
 #                                print('sol_gamma')
-#                                print(sol_gamma)    
+#                                print(sol_gamma)
                             sol_phi = self.F@sol_gamma
                             sol_current_branch = cur_mat @ sol_phi
                             sol_current_node = self.A @ sol_current_branch
@@ -1794,13 +1795,13 @@ class Representation():
                                 print(sol_current_node)
                                 print('')
                             phis.append(self.F@sol_gamma)
-            return np.sum(np.array(phis), axis=0) 
+            return np.sum(np.array(phis), axis=0)
 #    def print_dipoles_nodes(cls):
 #        for dipole, nodes in cls.dipoles_nodes.items():
 #            print('%s - from %s to %s'%(dipole.name, nodes[0], nodes[1]))
 
 
-#        
+#
 #        self.A = A
 #        self.D = D
 #        self.nodes = nodes
@@ -1808,7 +1809,7 @@ class Representation():
 #        shape = np.shape(A)
 #        self.nD = shape[1]
 #        self.nN = shape[0]
-#        
+#
 #    def find_loops(self):
 #        ker = find_ker(self.A) # find ker but need to check the loop orientation
 #        for ii, loop in enumerate(ker):
@@ -1819,13 +1820,13 @@ class Representation():
 #            print(ker[ii])
 #            print('')
 #        return ker
-    
+
     def get_edges_loop(self, loop, ax=None, display=False, offset=0):
         edges=[]
         orientations=[]
         which_dipole=np.where(loop)[0]
         for index_dipole in which_dipole:
-            indices_nodes=np.where(self.A[:, index_dipole])[0] 
+            indices_nodes=np.where(self.A[:, index_dipole])[0]
             index_node_0 = indices_nodes[0]
             index_node_1 = indices_nodes[1]
             if self.A[index_node_0, index_dipole]==-1:
@@ -1839,80 +1840,65 @@ class Representation():
             if display and not(ax is None):
                 ax.plot([coord_node_0[1]+0.1*(offset+1),coord_node_1[1]+0.1*(offset+1)],[coord_node_0[0]+0.1*(offset+1),coord_node_1[0]+0.1*(offset+1)],color='C%d'%index_dipole)
         return edges, orientations
-    
+
     def c(self, loop):
         translated_loop=[]
         for ii, elmt in enumerate(loop):
             if abs(elmt) == 1:
                 translated_loop.append(self.D[ii])
         return translated_loop
-        
+
 class Circuit(object):
-    
+
     def __init__(self, circuit_array, let=[]):
         # dipoles_impedance should be a fct that returns a dictionnary
         # of dipole impedances. This function should have one argument
         # the drive frequency
-        
+
         # dipoles_val should be a dict that has the values of the dipoles
-        
-        # circuit_array is an array of strings that contains nodes on even 
+
+        # circuit_array is an array of strings that contains nodes on even
         # indices and dipoles names in between those nodes. The nodes form a
         # square grid
-        
-        #Reinitialisation of all dipoles, nodes, holes
-        #Better : faire une fonction Dipole.empty() et pareil pour Nodes
-#        Dipole.dipole_list = []
-#        Dipole.dipole_list_DC = []
-#        Dipole.dipole_list_AC = []
-#        Dipole.dipoles_nodes = {}
-#        Dipole.n_wire = 0
-#        Node.node_list = []
-#        Node.eq_node_list = []
-#        Node.eq_node_dict = {}
-#        Node.n_node = {}
-#        Hole.hole_list = []
-#        Source_DC.source_DC_list=[]
-#        Source_DC.source_DC_nodes={}
-#        Source_DC.source_DC_val={}
-        #we do not put the val Dipole.val and Holes.val to empty because we do not need this.
+
         self.circuit_array = circuit_array
-        
+
         # store dipoles
         self.dipoles = [] # contains the copied dipoles
         self.dipoles_val = {}
         self.dipoles_DC = []
         self.dipoles_AC = []
-        
+
         # store nodes
         self.nodes = [] # contains the copied nodes
         self.nodes_val = {}
         self.eq_nodes = []
         self.eq_nodes_dict = {}
-        
-        #store holdes
+
+        #store holes
         self.holes = [] # contains the copied holes
         self.holes_val = {}
-        
+
         self.parse()
 
         # store match dipoles and nodes
         self.dipoles_nodes = {}
-        self._build_dipoles_nodes()
+        self._build_dipoles_nodes() # match dipoles and nodes
 
         self.rep_raw_DC = Representation('raw', self, self.dipoles_DC) # should occur before equivalent nodes
         is_DC_loop = self.rep_raw_DC.find_loops()
         if is_DC_loop:
             self.rep_raw_DC.associate_loop_with_phiext()
-        
+
         self._equivalent_nodes()
-        
+
+        # Now solve DC representation
+        # Be careful one should make any superconducting loop explicit for now
         if is_DC_loop:
             self.rep_DC = self.rep_raw_DC.convert_raw_to_eq()
             self.rep_DC.build_constrain('DC')
             self.rep_DC.solve_DC(debug=False)
-        # Be careful one should make any superconducting loop explicit for now
-        # Now solve DC representation
+
 
         self.rep_AC = Representation('equ', self, self.dipoles_AC)
         print('dipoles AC')
@@ -1923,7 +1909,7 @@ class Circuit(object):
         print(self.rep_AC.ker)
         self.rep_AC.find_loops()
         self.rep_AC.build_constrain('AC')
-   
+
     def parse(self,):
         self.plotted_elt = set()
         circuit = self.circuit_array
@@ -1953,30 +1939,30 @@ class Circuit(object):
 #                elt.children[0].name = elt.name
 #            else:
 #                pass
-#        
+#
 
         print(self.dipoles)
 
         name_elements(self.dipoles)
 
         print(self.dipoles)
-                
+
         dipoles = [dipole for dipole in self.dipoles]
         for dipole in dipoles:
             dipole.fill_dipoles()
-            
+
         print(self.dipoles)
-        
+
         name_elements(self.nodes)
         name_elements(self.holes)
-        
+
         self.update_vals()
-    
+
     def update_vals(self):
         for dipole in self.dipoles:
-            self.dipoles_val[dipole.name]=dipole.val        
+            self.dipoles_val[dipole.name]=dipole.val
         for hole in self.holes:
-            self.holes_val[hole.name]=hole.val 
+            self.holes_val[hole.name]=hole.val
 
     def plot(self, ax, debug=False, lw_scale=1):
         if not debug:
@@ -1991,7 +1977,7 @@ class Circuit(object):
             elt.plot(ax, lw_scale=lw_scale)
         ax.set_aspect('equal')
 
-            
+
     def sweep(self, elt, vals, guesses):
         list_eig_omegas = []
         list_eig_phizpfs = []
@@ -2035,7 +2021,7 @@ class Circuit(object):
 
         parents = []
         node_groups = []
-        for node in self.nodes: # each node with same parent are equivalent 
+        for node in self.nodes: # each node with same parent are equivalent
             parent = node.parent
             if parent.name!='':
                 if parent not in parents:
@@ -2044,7 +2030,7 @@ class Circuit(object):
                 else:
                     index = parents.index(parent)
                     node_groups[index].append(node)
-                    
+
         node_pairs += node_groups
         count = 0
         while count<len(node_pairs): # find the most general equivalent groups
@@ -2067,7 +2053,7 @@ class Circuit(object):
             print(ref, group)
             for node in group:
                 self.eq_nodes_dict[node]=ref
-                
+
         eq_nodes = list(set(self.eq_nodes_dict.values()))
         print(self.eq_nodes_dict)
         print(eq_nodes)
@@ -2075,10 +2061,10 @@ class Circuit(object):
         list_bool = [elt.name[0]=='G' for elt in eq_nodes]
         if any(list_bool):
             ground = eq_nodes.pop(list_bool.index(True))
-            eq_nodes = [ground] + eq_nodes   
-            
+            eq_nodes = [ground] + eq_nodes
+
         self.eq_nodes = eq_nodes
-            
+
     def sweep_2_params(self,elt_1,vals_1,elt_2,vals_2,guesses):
         matrix_eig_omegas = []
 #        matrix_eig_phizpfs =[]
@@ -2104,18 +2090,18 @@ class Circuit(object):
                     if elt_1.kind in [F, L, J] and elt_2.kind in [F, L, J]:
                         #actualize the guess DC each time
                         guess_DC=self.rep_DC.solve_DC(guess=guess_DC, verbose=False)
-                       
+
                         if ii==0:
                             guess_DC_mem=guess_DC
                         elif ii==len(vals_1)-1:
                             guess_DC=guess_DC_mem
-                        
+
                     elif elt_1.kind in [F, L, J] and not(elt_2.kind in [F, L, J]) :
                         if ii==0: #begining of the column
-                            guess_DC=self.rep_DC.solve_DC(guess=guess_DC, verbose=False)                  
+                            guess_DC=self.rep_DC.solve_DC(guess=guess_DC, verbose=False)
                     elif jj==0 and ii==0: #not flj and first step
                         guess_DC=self.rep_DC.solve_DC(guess=guess_DC, verbose=False)
-                        
+
                         print('Plot')
                         eig_omegas = np.ones((len(guesses),))*np.nan
                         phi1_vec=np.linspace(0,2*np.pi, 101)
@@ -2133,7 +2119,7 @@ class Circuit(object):
                         fig.colorbar(cl,ax=ax)
                         ax.set_title('First')
                         raise Exception
-                        
+
                      #AC checking
                     if jj==51 and ((ii==(len(vals_1)-1)) or ii==0) :
                         fig_eom,ax_eom=plt.subplots()
@@ -2154,7 +2140,7 @@ class Circuit(object):
                         ax_eom.vlines(np.array(current_guesses)/2/np.pi,ymin,ymax)
                         ax_eom.set_title('ii = %d, jj = %d'%(ii, jj))
 
-                        
+
                     try:
                          eig_omegas, eig_phizpfs = self.rep_AC.solve_AC(current_guesses, verbose=False)
                     except Exception:
@@ -2191,7 +2177,7 @@ class Circuit(object):
 #                        fig.colorbar(cl,ax=ax)
 #                        ax.set_title('NAN')
 #                        ax.plot(guess_DC[2],guess_DC[1],'or')
-#                        
+#
 #                        #AC checking
 #                        fig_eom,ax_eom=plt.subplots()
 #                        print('Current guess')
@@ -2202,9 +2188,9 @@ class Circuit(object):
 #                        ax_eom.vlines(np.array(current_guesses)/2/np.pi,ymin,ymax)
 #                        ax_eom.set_title('ii = %d, jj = %d'%(ii, jj))
 ##                        raise Exception
-#                      
+#
 #                        break
-    #                    eig_phizpfs=None 
+    #                    eig_phizpfs=None
                         if ii==(len(vals_1)-1):
                             current_guesses=list_eig_omegas_jj[0]
                         elif not (jj==0):
@@ -2217,9 +2203,9 @@ class Circuit(object):
                     list_eig_omegas_jj.append(eig_omegas)
                 jj+=1
                 matrix_eig_omegas.append(list_eig_omegas_jj)
-                
+
             matrix_eig_omegas=np.array(matrix_eig_omegas)
-            
+
             # Try to get back the values with nan
             print('FIRST PASSAGE DONE')
             N2=len(vals_2)
@@ -2258,15 +2244,15 @@ class Circuit(object):
                         else :
                             index_tab=[(jj_ind-1,ii_ind-1),(jj_ind-1,ii_ind),(jj_ind-1,ii_ind+1),(jj_ind,ii_ind+1),(jj_ind+1,ii_ind+1),(jj_ind+1,ii_ind),(jj_ind+1,ii_ind-1),(jj_ind,ii_ind-1)]
                             try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix_eig_omegas,jj_ind,ii_ind,index_tab)
-   
-            
-                  
+
+
+
             print('matrix size')
             print(np.array(matrix_eig_omegas).shape)
-            ##Re-arrangement of the results, classified with guesses 
+            ##Re-arrangement of the results, classified with guesses
             mat_guesses_omegas=np.moveaxis(matrix_eig_omegas,-1,0)
-            
-            
+
+
         return(mat_guesses_omegas)
 
 
@@ -2289,10 +2275,10 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             except Exception:
                 eig_omegas = np.ones((len(guesses),))*np.nan
             else:
-                cannot_solve=False 
+                cannot_solve=False
             matrix[jj][ii]=eig_omegas
         number_neighbours+=1
-    
+
     if cannot_solve:
         print('not solved')
     else:
@@ -2308,11 +2294,11 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             ymin,ymax=ax_eom.get_ylim()
             ax_eom.vlines(np.array(guesses)/2/np.pi,ymin,ymax)
             ax_eom.set_title('ii = %d, jj = %d'%(ii, jj))
-            
 
-#### FUNCTIONS USED IN INIT  
-#            
-#    
+
+#### FUNCTIONS USED IN INIT
+#
+#
 #    def display_modes(self, axs, fig):
 #        y_max = self.circuit_array.shape[0]
 #        range_jj = self.circuit_array.shape[0]//2+1
@@ -2342,8 +2328,8 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #                directions.append(direction)
 #                direction = direction*1.5*np.real(mode[ii]*np.exp(1j*theta))
 ##                direction = np.abs(mode[ii])*rotation @ direction*1.5
-#                arrow = ax.annotate("", xy=(position[0]+direction[0]/2, position[1]+direction[1]/2), 
-#                                xytext=(position[0]-direction[0]/2, position[1]-direction[1]/2), 
+#                arrow = ax.annotate("", xy=(position[0]+direction[0]/2, position[1]+direction[1]/2),
+#                                xytext=(position[0]-direction[0]/2, position[1]-direction[1]/2),
 #                                arrowprops=dict(arrowstyle="->"))
 #                arrows.append(arrow)
 #            arrowss.append(arrows)
@@ -2362,9 +2348,9 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #            ax.set_title(r'Mode %d -- $\omega_c= $ %.3f + j*%.3f'%(mode_nb,self.omega0[mode_nb], self.kappa[mode_nb]), pad=-2)
 #            mode_nb+=1
 #        for ax in axs[len(modes):]:
-#            ax.axis('off') 
+#            ax.axis('off')
 #            pass
-#        
+#
 #        def onclick_ax(event, axs):
 #            try:
 ##                x, y = event.xdata, event.ydata
@@ -2383,7 +2369,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #                            direction=directionss[jj][ii]
 #                            position=positionss[jj][ii]
 #                            direction = direction*1.5*np.real(modes[jj, ii]*np.exp(1j*theta))
-#                            
+#
 #                            arrow.xy=(position[0]+direction[0]/2, position[1]+direction[1]/2) # fleche
 #                            arrow.set_position((position[0]-direction[0]/2, position[1]-direction[1]/2)) # queue
 ##                if curr_ax==ax:
@@ -2397,11 +2383,11 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 ##                        state[jj,ii]=0
 ##                    im.set_data(wig_global)
 #                event.canvas.draw()
-#        
+#
 #        fig.canvas.mpl_connect('button_press_event', lambda event : onclick_ax(event, axs))
-#        
-        
-        
+#
+
+
     def RLC_mat(self, dipoles_val):
         self.rescale_time=1e9
         n_dipoles = len(self.D_vec)
@@ -2427,7 +2413,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
         self.C_mat = C_mat*phi0**2/hbar*self.rescale_time**2/1e9
         return oR_mat, oL_mat, C_mat
 
-    def find_D_AT_ArawT(self, circuit, coors): 
+    def find_D_AT_ArawT(self, circuit, coors):
         # let's obligatory start from ground
         self.dict_display = {}
         y_max = circuit.shape[0]
@@ -2449,7 +2435,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
                         to_coors.append(new_coor)
                 except Exception:
                     pass
-        if len(to_coors)!=0: 
+        if len(to_coors)!=0:
             D, A_T, A_raw_T, nodes, nodes_raw, nodes_type, nodes_type_raw = self.find_D_AT_ArawT(_circuit, to_coors)
         else:
             D, A_T, A_raw_T, nodes, nodes_raw, nodes_type, nodes_type_raw = [], [], [], [], [], [], []
@@ -2465,12 +2451,12 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
                 nodes_raw.append(edge[1])
                 nodes_type_raw.append(circuit[edge[1]])
             index_second_node_raw = nodes_raw.index(edge[1])
-            
+
             A_raw_line=np.zeros(len(nodes_raw))
             A_raw_line[index_first_node_raw] =-1
             A_raw_line[index_second_node_raw] =1
             A_raw_T.append(A_raw_line)
-                       
+
             if circuit[edge[0]]=='ground':
                 index_first_node = 0
             else:
@@ -2478,7 +2464,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
                     nodes.append(edge[0])
                     nodes_type.append(circuit[edge[0]])
                 index_first_node = nodes.index(edge[0])+1
-                   
+
             if circuit[edge[1]]=='ground':
                 index_second_node = 0
             else:
@@ -2492,7 +2478,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             A_T.append(A_line)
             #print('Pline',P_line, '\n')
             coor_edge = [edge[0], edge[1]]
-            
+
             # display arrows
             dipole_coor = coor_edge[0]//2+coor_edge[1]//2
             if circuit[dipole_coor]!='wire' and circuit[dipole_coor][0]!='T':
@@ -2503,18 +2489,18 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
                 self.dict_display[circuit[dipole_coor]] = [np.array(position), np.array(direction)]
                 if arrow_coor[1]==end_coor[1]:
                     # vertical arrow
-                    self.ax.annotate("", xy=(arrow_coor[1]+0.3, y_max-1-arrow_coor[0]), 
-                                xytext=(end_coor[1]+0.3, y_max-1-end_coor[0]), 
+                    self.ax.annotate("", xy=(arrow_coor[1]+0.3, y_max-1-arrow_coor[0]),
+                                xytext=(end_coor[1]+0.3, y_max-1-end_coor[0]),
                                 arrowprops=dict(arrowstyle="->"))
                 if arrow_coor[0]==end_coor[0]:
                     # horizontal arrow
-                    self.ax.annotate("", xy=(arrow_coor[1], y_max-1-arrow_coor[0]+0.3), 
-                                xytext=(end_coor[1], y_max-1-end_coor[0]+0.3), 
+                    self.ax.annotate("", xy=(arrow_coor[1], y_max-1-arrow_coor[0]+0.3),
+                                xytext=(end_coor[1], y_max-1-end_coor[0]+0.3),
                                 arrowprops=dict(arrowstyle="->"))
         return D, A_T, A_raw_T, nodes, nodes_raw, nodes_type, nodes_type_raw
 
- 
-######## LOOPS AND PHI EXT ####### 
+
+######## LOOPS AND PHI EXT #######
     def to_loop_without_wire(self,loop):
         #takes a loop expressed in physical way, returns the list of the same loops but expressed in "logical" way (P, D_vec)
         loop_res=[]
@@ -2522,9 +2508,9 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             if not(self.rep_raw.D[i]=='wire'):
                 loop_res.append(loop[i])
         return(loop_res)
-            
+
     def associate_physical_loop_with_phiext_sum(self):
-             #returns the tab of coordinates of [phiext1,phiext2,...] returns table [[ind_loop, ind_loop'], [],] where phiext1 is inside the loop, loop'. 
+             #returns the tab of coordinates of [phiext1,phiext2,...] returns table [[ind_loop, ind_loop'], [],] where phiext1 is inside the loop, loop'.
             self.loops_raw = self.rep_raw.find_loops()
             list_edges_loop= [self.rep_raw.get_edges_loop(loop) for loop in self.loops_raw]
             self.phiext_sum = []
@@ -2535,7 +2521,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
                         str_phiext_sum+=self.circuit_array[coor_phiext]+'+' # right analytical formula of fluxes in given loop
                 self.phiext_sum.append(str_phiext_sum[:-1])
 
-    def find_ker_A(self): # construct a good basis for ker A 
+    def find_ker_A(self): # construct a good basis for ker A
                           # it contains first the physical loops (loops of rep_raw)
                           # and then complete with orthogonal vectors to a basis of ker A
         ker_raw=self.loops_raw
@@ -2574,15 +2560,15 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
         for loop in self.ker_logical:
             print(self.rep.translate_loop(loop))
         print('############ \n')
-              
+
         # store edges of physical_loops
-        
-        return(self.ker_physical, self.ker_logical, self.constrains)     
-         
+
+        return(self.ker_physical, self.ker_logical, self.constrains)
+
 #    def find_constrains_with_phiext(self):
 #        list_ind_phi_pos=[]
 #        list_ind_phi_neg=[]
-#        list_phi_str=[]        
+#        list_phi_str=[]
 #        coor_phi, associated_loops, associated_loops_edges=self.associate_physical_loop_with_phiext()
 #        for loop in self.ker_physical:
 #           res_str, phi_positive, phi_negative=self.sum_phiext_loop(loop)
@@ -2596,10 +2582,10 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #        self.list_phiext_str=list_phi_str
 #        self.list_ind_phi_positive=list_ind_phi_pos
 #        self.list_ind_phi_negative=list_ind_phi_neg
- 
+
 ####### APPLY CONSTRAINS AND SOLVE  ######
 
-  
+
     def find_constrains(self):
         ker = find_ker(self.A)
         self.constrains = ker
@@ -2642,7 +2628,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #        inv_Pc = nl.inv(Pc)
 #        inv_Pc = np.delete(inv_Pc, indices, axis=1)
 #        self.Pc =inv_Pc
-#        
+#
 #        self.C_mat_c = inv_Pc.T @ self.C_mat @ inv_Pc
 #        self.oL_mat_c = inv_Pc.T @ self.oL_mat @ inv_Pc
 #        self.oR_mat_c = inv_Pc.T @ self.oR_mat @ inv_Pc
@@ -2657,7 +2643,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             res_constrains.append(temp_constrains)
         return(res_constrains)
         #res_constrains is a list that contains at indices of dipole the list of indices of constrains in which the dipole is present
- 
+
     def apply_constrains(self,let):
         #prepare the phi_tilde vector
         print('\n### Applying constrains ###')
@@ -2697,7 +2683,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
                     print('Warning : the variable %s was supposed to stay independent. It will disappear'%(self.D_vec[ii]))
         #If not all constrains had been applied we go into the following loop
         ii=0
-        while matrix_test.shape[0]<N_dipoles and ii<N_dipoles: 
+        while matrix_test.shape[0]<N_dipoles and ii<N_dipoles:
             dipole=self.D_vec[ii]
             if dipole in list_disappear:
                 vec=np.zeros((1,N_dipoles))
@@ -2720,9 +2706,9 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             if not(ind in indices_free_variables):
                 Pc[ind]=self.constrains[ind_c]
                 list_phi_constrains.append(self.list_phiext_str[ind_c])
-                ind_c+=1               
-         
-        #to have the lists of the variable that are free and the variables that will disappear        
+                ind_c+=1
+
+        #to have the lists of the variable that are free and the variables that will disappear
         dipoles_disappear=[]
         indices_disappear=[]
         dipoles_free=[]
@@ -2736,11 +2722,11 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
         print('%s variables will be free'%(dipoles_free))
         print('Matrix of constrains (Pc) : \n', Pc)
         print('List of phi constrains associated :', list_phi_constrains)
-        
+
         #the matrices
         inv_Pc=nl.inv(Pc)
         #print('inv \n',inv_Pc)
-         #We prepare the matrix with 
+         #We prepare the matrix with
         inv_Pc_reduced=np.delete(inv_Pc, indices_disappear, axis=1)
         print('\nInverse of Pc :\n', inv_Pc)
         print('Inverse of Pc reduced (only the columns of the free variables are kept): \n',inv_Pc_reduced)
@@ -2749,9 +2735,9 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
         self.inv_Pc_reduced=inv_Pc_reduced
         self.list_phi_constrains_str=list_phi_constrains
         return(Pc, indices_free_variables)
-                                
-           
-        
+
+
+
 #    def apply_constrains_bis(self,let):
 #        #prepare the phi_tilde vector
 #        print('%d variables will disappear'%(len(self.constrains)))
@@ -2772,13 +2758,13 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #            list_disappear = let
 #            #list_disappear contains the variables that will disappear
 #        print('%s variables will disappear'%(list_disappear))
-#        
+#
 #        #we travel over the list_disapear
 #        print('### Check apply_contrains_bis ###')
 #        print(self.D_vec)
 #        print(self.constrains)
 #        list_phi_constrains=[]
-#        indices_that_really_disappear = [] 
+#        indices_that_really_disappear = []
 #        constrains_of_dipole=self.constrains_contain_dipole()
 #        used_constrains=[] #save the indices of the used constrains
 #        Pc = np.eye(len(self.D_vec))
@@ -2805,7 +2791,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #            else:
 #                list_phi_constrains.append(0)
 #                #no need to change the matrix Pc
-#                
+#
 #        # In the case where all the variable of the list could not disappear, we need to take arbitrary variables
 #        not_disappear_yet=len(self.constrains)-len(indices_that_really_disappear)
 #        if not_disappear_yet !=0:
@@ -2828,21 +2814,21 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #                                 break
 #                        if constrain_found:
 #                            break
-#        print('The indices of dipoles which have disappeared %s'%( indices_that_really_disappear))                    
+#        print('The indices of dipoles which have disappeared %s'%( indices_that_really_disappear))
 #        print('Pc  \n', Pc)
 #        inv_Pc=nl.inv(Pc)
 #        print('inv',inv_Pc)
 #        return(Pc)
-  
 
 
-#####  GET THE NORMAL MODES              
-        
+
+#####  GET THE NORMAL MODES
+
     def list_indices(self):
-        #functions that defines list_indJJ, ind as instance variables 
+        #functions that defines list_indJJ, ind as instance variables
         l_indices_JJ=[]  #list that contains the indices of the JJ in the D_vec
         l_indices_ind=[] #list that contains the indices of the inductances in the D_vec
-        l_indices_trl=[] #list that contains the indices of the transmission lines in the D_vec, 
+        l_indices_trl=[] #list that contains the indices of the transmission lines in the D_vec,
                          # trl are inductors in DC
         for (ii,elt) in enumerate(self.D_vec):
             if elt[0]=='L':
@@ -2855,13 +2841,13 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
         self.l_indices_trl=l_indices_trl
         self.l_indices_JJ=l_indices_JJ
         return(self.l_indices_ind, self.l_indices_JJ, self.l_indices_trl)
-       
-                    
+
+
     def derivative_U(self, n, dipoles_val):
         #returns a function that takes a vector phi and calculate dU/dphi at the order n in 1 to 4
         if n<0:
             raise ValueError('n must be larger than 0')
-        def derivate(phi_vec): #the argument is a vector of 'cap_phi'(cap_phi= in coincidences with indices of D_vec        
+        def derivate(phi_vec): #the argument is a vector of 'cap_phi'(cap_phi= in coincidences with indices of D_vec
             N_dipoles=len(phi_vec)
             dU_res=np.zeros((N_dipoles,)*n)
             U_order_0=0
@@ -2882,12 +2868,12 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
                 if n%4==2:
                     dU_res[t]+=self.oJ_mat[ii, ii]*np.cos(phi_vec[ii])
                 if n%4==3:
-                    dU_res[t]+=-self.oJ_mat[ii, ii]*np.sin(phi_vec[ii])        
+                    dU_res[t]+=-self.oJ_mat[ii, ii]*np.sin(phi_vec[ii])
             if n==0:
                 dU_res=U_order_0
             return(dU_res)
         return(derivate)
-    
+
     def convert_values_phiext(self,dipoles_val):
         vec_phi_sum=[]
 #        print('Check convert values')
@@ -2918,8 +2904,8 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
                 vec_phi_sum.append(phi_sum)
 #        print(vec_phi_sum)
         self.vec_phiext=vec_phi_sum
-                   
-#    
+
+#
 #    def convert_values_phi(self, dipoles_val):
 #        vec_phi_sum=[]
 ##        print('Check convert_values')
@@ -2943,7 +2929,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #        self.vec_phiext=np.array(vec_phi_sum)
 ##        print('Convert value phi',self.vec_phiext)
 #        return(self.vec_phiext)
-       
+
     def derivative_U_(self,n,dipoles_val, P=None): #P is the basis change matrix
         if P is None:
             P = np.eye(self.inv_Pc_reduced.shape[1])
@@ -2961,7 +2947,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #                print('func deriv')
 #                print(function_derivate(phi_vec))
                 for permutation in permutations:
-                    
+
                     #            print(P.shape, _HessnL.shape)
 
 #                    print('permutation')
@@ -2980,14 +2966,14 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #            print(dU_res_)
             return(dU_res_)
         return(derivate_)
-        
-        
+
+
     def Utominimize(self, phi_vec_tilde, dipoles_val):
         function_U=self.derivative_U_(0, dipoles_val)
         res_U=function_U(phi_vec_tilde)
         return(res_U)
 
-     
+
     def minimize(self, str_method, dipoles_val):
         vec_phi_init=np.zeros(self.inv_Pc_reduced.shape[1])
         res=minimize(self.Utominimize, vec_phi_init, args=(dipoles_val), method=str_method)# ,tol=1e-12) #method 'Powell' could be good also
@@ -2998,7 +2984,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
         #print('Minimize',res)
         self.phi_min_tilde = phi_min_tilde
         return(self.phi_min_tilde)
-        
+
     def get_inv_dipoles_val_linearized(self, dipoles_val):
         dipoles_val_linearized=dipoles_val.copy()
         for ind_JJ in self.l_indices_JJ:
@@ -3028,11 +3014,11 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             elif elt[0]=='C':
                 power.append(1)
             elif elt[0]=='F':
-                power.append(0) 
+                power.append(0)
             else:
                 raise ValueError('%s is not a R, L, C dipole, not a JJ, and is not a phiext'%elt)
-        
-        
+
+
         def dico(omega):
             dic = {}
 #            print(dipoles_val_loc)
@@ -3042,8 +3028,8 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #                print('elt', elt)
                 dic[elt] = dipoles_val_loc[elt]*(1j*omega)**power[ii]
             return dic
-        return dico          
-     
+        return dico
+
     def get_oL_matrix(self, dipoles_val, print_bool):
         function_Hess=self.derivative_U_(2,dipoles_val)
 #        print('phi_min_tilde', self.phi_min_tilde)
@@ -3053,25 +3039,25 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             print('Inductance matrix \n' ,self.oL_matrix)
         self.oL_mat_c = self.oL_matrix
         return(self.oL_matrix)
-        
+
     def get_C_matrix(self, print_bool):
         self.C_mat_c = self.inv_Pc_reduced.T @ self.C_mat @ self.inv_Pc_reduced
         if print_bool:
             print('Capacitance matrix \n', self.C_mat_c)
         return(self.C_mat_c)
-    
-    
+
+
     def get_oR_matrix(self, print_bool):
         self.oR_mat_c=self.inv_Pc_reduced.T @ self.oR_mat @ self.inv_Pc_reduced
         if print_bool:
             print('Resistor matrix \n', self.oR_mat_c)
         return(self.oR_mat_c)
-        
-    
+
+
     def zero_C_mat_c(self, print_bool):
         # enforce C=0 as current law ?
         e, v = nl.eigh(self.C_mat_c)
-        
+
         C_mat_c_diag = v.T @ self.C_mat_c @ v
         oL_mat_c_diag = v.T @ self.oL_mat_c @ v
         if print_bool:
@@ -3081,12 +3067,12 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             print('L mat diag',oL_mat_c_diag)
         indices = []
         Pc = np.eye(len(C_mat_c_diag))
-        dU_dphi = np.copy(oL_mat_c_diag) 
+        dU_dphi = np.copy(oL_mat_c_diag)
         for ii, C in enumerate(np.diag(C_mat_c_diag)):
             if equal_float(C,0):
                 indices.append(ii)
                 Pc[ii]= v @ dU_dphi[ii] # constrain
-                
+
         inv_Pc = nl.inv(Pc)
         inv_Pc = np.delete(inv_Pc, indices, axis=1)
 
@@ -3094,11 +3080,11 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
         self.C_mat_cc = inv_Pc.T @ self.C_mat_c @ inv_Pc
         self.oL_mat_cc = inv_Pc.T @ self.oL_mat_c @ inv_Pc
 #        self.oR_mat_c = inv_Pc.T @ self.oR_mat @ inv_Pc
-        
+
     def zero_oL_mat_c(self, print_bool):
         # enforce 1/L=0 as voltage law ?
         e, v = nl.eigh(self.oL_mat_cc)
-        
+
         oL_mat_cc_diag = v.T @ self.oL_mat_cc @ v
         C_mat_cc_diag = v.T @ self.C_mat_cc @ v
         if print_bool:
@@ -3123,7 +3109,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
         self.oL_mat_ccc = inv_Pc.T @ self.oL_mat_cc @ inv_Pc
         self.C_mat_ccc = inv_Pc.T @ self.C_mat_cc @ inv_Pc
 #        self.oR_mat_c = inv_Pc.T @ self.oR_mat @ inv_Pc
-        
+
     def get_normal_modes(self, print_bool):
         if print_bool :
             print('Pcc \n',self.Pcc)
@@ -3139,7 +3125,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             print(T0)
             print(U0)
             print('')
-        
+
         w0, v0 = nl.eigh(T0)
         if print_bool :
             print('w0', w0)
@@ -3147,7 +3133,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
         U1 = v0.T @ U0 @ v0
 
         inv_sqrtT1 = np.diag(w0**(-0.5))
-        
+
 #        T2 = inv_sqrtT1 @ T1 @ inv_sqrtT1
         U2 = inv_sqrtT1 @ U1 @ inv_sqrtT1
 
@@ -3161,8 +3147,8 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             print('w', w)
             print('Phi zpf', phiZPF)
 #        U4 = np.diag(phiZPF) @ U3 @ np.diag(phiZPF)
-        
-        self.P_display = self.inv_Pc_reduced @ PC @ v0 @ inv_sqrtT1 @ v2 @ np.diag(phiZPF) 
+
+        self.P_display = self.inv_Pc_reduced @ PC @ v0 @ inv_sqrtT1 @ v2 @ np.diag(phiZPF)
         # all changes of variables without affine displacement, from phi to normal modes
         self.P = PC @ v0 @ inv_sqrtT1 @ v2 @ np.diag(phiZPF) # entire matrix !!
         # only changes of variable after affine, from phi_tilde to normal modes
@@ -3184,9 +3170,9 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             print('')
         self.w = w
         return(w)
-        
-   
-     
+
+
+
     def dissipation(self, print_bool):
          print('\n#### DISSIPATION #### \n')
          T0 = self.C_mat_c
@@ -3209,7 +3195,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
          print('U1 \n',U1)
          flag_C_R_line_zero=False
          flag_C_R_diag_zero=False
-                 #Specific case when the matrix are size 1 
+                 #Specific case when the matrix are size 1
 #         if T1.shape[0]==1:
 #             Passage_matrix=np.array([]) #there is just one phi : passage_matrix is not useful in that case but it is defined "by default"
 #             index_to_remove=[]
@@ -3221,7 +3207,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #                 U1[0,0]=0
 #         else:
          index_to_remove=[]
-         Passage_matrix=np.eye(3*ndim) 
+         Passage_matrix=np.eye(3*ndim)
          for ii in range(ndim):
              print('\n index :', ii)
              if T1[ii][ii]==0: #shift of the raw
@@ -3239,8 +3225,8 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
                       index_to_remove.append(ii)
                       Passage_matrix[ii]=np.concatenate((np.zeros(ndim),D1[ii],T1[ii]),axis=0) #phi dot line
                       flag_C_R_diag_zero=True
-                      
-         ndim_red=ndim-len(index_to_remove)        
+
+         ndim_red=ndim-len(index_to_remove)
          print('After shift  \n')
          print('T1\n', T1)
          print('D1\n', D1)
@@ -3248,10 +3234,10 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
          print('Case of constrains just on phi :', flag_C_R_line_zero)
          print('\nPassage \n',Passage_matrix)
          print('Index to remove \n', index_to_remove)
-         
+
          if flag_C_R_line_zero and flag_C_R_diag_zero:
              raise ValueError('Warning : this case can not be treated yet ')
-        
+
          elif flag_C_R_line_zero:
             Passage_matrix=np.eye(ndim)
             for ind in index_to_remove:
@@ -3309,9 +3295,9 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
          up_mat=np.concatenate((np.zeros((ndim_red,ndim_red)),np.eye(ndim_red)),axis=1)
          diff_equation_mat=np.concatenate((up_mat,bottom_mat),axis=0)
          print('Diff eq array : \n',diff_equation_mat)
-             
-             
-         omega_C, vec_sol=nl.eig(diff_equation_mat)  
+
+
+         omega_C, vec_sol=nl.eig(diff_equation_mat)
          self.omega_C=omega_C
          self.omega0=np.imag(omega_C)
          self.kappa=np.real(omega_C)
@@ -3322,11 +3308,11 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
          print('Complex omega\n',omega_C)
 #         print('Vec \n', vec_sol.T) # /!\ vec in columns
          return(flag_C_R_line_zero, flag_C_R_diag_zero, v0) #v0 is the passage matrix for T0
-         
-         
-### 
+
+
+###
     def modes_distribution(self, print_bool):
-        #returns an array for each mode, gives its distribution on phi and phi_dot 
+        #returns an array for each mode, gives its distribution on phi and phi_dot
         flag_C_R_line_zero, flag_C_R_diag_zero, v0= self.dissipation(print_bool)
         print('\n ###  Modes distribution \n')
         print('R=0  && C=0 ? ', flag_C_R_line_zero)
@@ -3338,7 +3324,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
         if not(flag_C_R_line_zero) and not(flag_C_R_diag_zero): # all modes are in vec_sol
             print('Case where C!=0 or C=0 and no zero on R \n')
             phi_modes=self.vec_sol #nothing to change : just take the phi and not phi dots.
-                 
+
         elif flag_C_R_diag_zero:
             print('Case C=0 and oR[diag]=0\n')
             vec_tot=np.concatenate((self.vec_sol,self.omega_C*self.vec_sol, self.omega_C**2*self.vec_sol),axis=0)
@@ -3349,15 +3335,15 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             print('Inv passage red \n', self.inv_Passage_reduced)
             print('Vec_sol \n', self.vec_sol)
             phi_modes= self.inv_Passage_reduced @ self.vec_sol
-            
-      
+
+
             #Back to physical modes
         phi_modes=v0 @ phi_modes #because we went on the basis of C
         print('Phi modes \n',phi_modes)
         self.P_display= self.inv_Pc_reduced  @ phi_modes
         print('P display \n', self.P_display)
-            
-            
+
+
 #        for (ind,vec_mode) in enumerate(self.vec_sol):
 #            if not(flag_C_R_line_zero) and not(flag_C_R_diag_zero): # all modes are in vec_sol
 #                 print('Case C!=0 \n')
@@ -3376,7 +3362,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #                mode_tot= self.inv_Passage_reduced @ vec_mode[:ndim]
 #                phi_modes.append(mode_tot)
         # Moche de faire ça : plutôt faire en produit matriciel!
-        
+
 #        print('Modes distribution (in phi tilde) \n', phi_modes)
 #        print('Phi modes \n', phi_modes)
 #        #Then we have to take into account all the previous rotations
@@ -3387,18 +3373,18 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #        distrib_modes_physical=np.array(distrib_modes_physical)
 #        # Moche de faire ça : plutôt faire en produit matriciel!
 #        print('phi modes physical \n', distrib_modes_physical)
-#         
+#
 #        self.distrib_modes_physical=distrib_modes_physical
         return(self.P_display)
-        
-            
-            
+
+
+
          #Passage_matrix can be either :
          #identity  if not(flag_C_R_line_zero) and not(flag_C_R_diag_zero)
          # size ndim  (- constrained phi) if flag_C_R_line_zero and not(flag_C_R_diag_zero)
          #size 3*ndim(-constrained phi) if flag_C_R_diag_zero and not(flag_C_R_line_zero)
-      #convention, the vector is first phi and then phi dot      
-       
+      #convention, the vector is first phi and then phi dot
+
     def solve_taylors(self, taylors, dicoval): #particulars is a list of lists that contains the indexes of the modes.
         if taylors is not None:
             Xip = []
@@ -3422,7 +3408,7 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
         else :
             Xip=None
         return(Xip)
-      
+
 
 
 
@@ -3455,10 +3441,10 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #            input_I = np.zeros(len(self.nodes)-1)
 #            input_I[index_excitation] = 1
 #            self.input_I = input_I
-#        
-   
-         
-        
+#
+
+
+
 
 
 #
@@ -3474,20 +3460,20 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
 #            omega_mat=np.real(omega_C)
 #            kappa_mat=np.imag(omega_C)
 #        else : #ie there is a zero on the diag of C
-#        
+#
 #            return(omega_mat, kappa_mat)
-        
 
 
 
 
-#### SOLUTION CLASS 
+
+#### SOLUTION CLASS
 
     def solve(self, omega, dicoval):
         self.dipoles=self.get_dipoles_admittance(dicoval)
 #        print(self.dipoles)
         return Solution(self, omega)
-    
+
     def eigen_omega_Q(self, guess_omega, node=0):
         guess_omega = np.array([np.real(guess_omega), np.imag(guess_omega)])
         def Y(omega):
@@ -3496,35 +3482,35 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             sol = self.solve(re_omega+1j*im_omega)
             return np.abs(sol.Y_mat[node])
         res = minimize(Y, guess_omega)
-        
+
         omega = res.x
         omega0 = omega[0]
         Q = omega[0]/2/omega[1]
         return omega0, Q
-    
+
     def excitation_normal_modes(self,omega, dicoval):
         sol=self.solve(omega, dicoval)
         V_branches=sol.V_branches()
         #construction of corresponding phi
         vec_phi=[]
-        for elt_name in self.D_vec: 
-            vec_phi.append(V_branches[elt_name]/(1j *omega)) 
+        for elt_name in self.D_vec:
+            vec_phi.append(V_branches[elt_name]/(1j *omega))
         vec_phi=np.array(vec_phi)
         participation_modes=self.P_display.T @ vec_phi
         return(participation_modes)
 
 class Solution(object):
-    
+
     def __init__(self, circuit, omega):
         self.circuit = circuit
         self.omega = omega
-        
+
         # compute conductance matrix
         self.G_mat = self.eval_G_matrix()
         self.inv_G_mat = nl.inv(self.G_mat)
         self.Y_mat = self.eval_Y()
         self.Z_mat = self.eval_Z()
-        
+
 
     def eval_G_matrix(self):
         inv_D_vec = []
@@ -3540,14 +3526,14 @@ class Solution(object):
     def eval_Y(self):
         inv_G_mat = nl.inv(self.G_mat)
         return 1/np.diag(inv_G_mat)
-    
+
     def eval_Z(self):
         inv_G_mat = nl.inv(self.G_mat)
         return np.diag(inv_G_mat)
-    
+
     def V_nodes(self,):
         V_nodes = self.inv_G_mat @ self.circuit.input_I
-        V_nodes = np.concatenate((np.array([0]), V_nodes))     
+        V_nodes = np.concatenate((np.array([0]), V_nodes))
         return V_nodes
 
     def V_branches(self,):

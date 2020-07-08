@@ -5,7 +5,7 @@ Created on Fri Jun 14 18:18:46 2019
 @author: Zaki
 """
 
-from functions import Dipole, Node, Hole, Circuit, Representation
+from EOMcircuit.functions import Dipole, Node, Hole, Circuit, Representation
 import numpy as np
 from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
