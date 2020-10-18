@@ -36,6 +36,7 @@ Za = 50
 # LC cav
 Ca = Dipole('Ca', 1/wa/Za)
 La = Dipole('La', Za/wa)
+Ta = Dipole('Ta', (np.pi/wa, Za), ground = G)
 
 # trm params
 wb = 2*np.pi*6
@@ -51,12 +52,24 @@ Cc = Dipole('Cc', Cb.val/10)
 # capa input
 Cg = Dipole('Cg', Cb.val/10)
 
-R0 = Dipole('R0', 50)
+R0 = Dipole('R0', 5000)
 
 
 circuit = [[ N, W, N,Cc, N, W, N,Cg, N],
            [Jb, _,Cb, _,La, _,Ca, _,R0],
            [ G, W, N, _, G, W, N, _, G]]
+
+circuit = [[ N, W, N,Cc, N,Ta, N,Cg, N],
+           [Jb, _,Cb, _, _, _, _, _,R0],
+           [ G, W, N, _, _, _, _, _, G]]
+
+circuit = [[ G,Cc, N,Ta, N, R0, G],
+           [ _, _, _, _, _, _, _],
+           [ _, _, _, _, _, _, _]]
+
+# circuit = [[ G,Cc, N, W, N, R0, G],
+#            [ _, _,La, _,Ca, _, _],
+#            [ _, _, G, W, N, _, _]]
 
 
 fig_circuit, ax_circuit = plt.subplots()
@@ -69,11 +82,16 @@ gs = gridspec.GridSpec(ncols=2, nrows = 2)
 gs.update(left=0.10, right=0.95, wspace=0.0, hspace=0.1, top=0.95, bottom =0.05)
 ax_eom = fig.add_subplot(gs[0, :])
 
-omegas = np.linspace(2*2*np.pi, 8*2*np.pi, 501)
-kappas = np.linspace(1e-6*2*np.pi, 1e-1*2*np.pi, 51)
+omegas = np.linspace(2*2*np.pi, 10*2*np.pi, 201)
+kappas = np.linspace(1e-6*2*np.pi, 1e-1*2*np.pi, 201)
 
-guesses = [4*2*np.pi, 6*2*np.pi]
-c.rep_AC.display_eom(ax_eom, omegas, kappas=kappas, guesses=guesses)#, kappas=kappas, guesses=guesses)#kappas=kappas
+# omega_center = 3.9169965323536404*2*np.pi
+# kappa_center = 0.024938670630199132*2*np.pi
+# omegas = np.linspace(omega_center-0.04, omega_center+0.04, 501)
+# kappas = np.linspace(kappa_center-0.04, kappa_center+0.04, 501)
+
+guesses = [4*2*np.pi]
+c.rep_AC.display_eom(ax_eom, omegas, kappas=kappas, guesses=guesses, log_kappa=True)#, kappas=kappas, guesses=guesses)#kappas=kappas
 eig_omegas, eig_phizpfs = c.rep_AC.solve_EIG(guesses)
 
 #ax_eom.vlines(eig_omegas, np.amin(to_plot), np.amax(to_plot), lw=1, color='r')
@@ -83,7 +101,8 @@ eig_omegas, eig_phizpfs = c.rep_AC.solve_EIG(guesses)
 ax0 = fig.add_subplot(gs[1, :])
 c.plot(ax0)
 c.rep_AC.plot_phi(ax0, 10*np.real(eig_phizpfs[0]), offset=0.3, color='C0') # 4* -> magnification for plot only
-c.rep_AC.plot_phi(ax0, 10*np.real(eig_phizpfs[1]), offset=0.5, color='C1') # 4* -> magnification for plot only
+# c.rep_AC.plot_phi(ax0, 10*np.real(eig_phizpfs[1]), offset=0.5, color='C1') # 4* -> magnification for plot only
+# c.rep_AC.plot_phi(ax0, 10*np.real(eig_phizpfs[1]), offset=0.7, color='C2') # 4* -> magnification for plot only
 
 #ax1 = fig.add_subplot(gs[1, 1])
 #c.plot(ax1)

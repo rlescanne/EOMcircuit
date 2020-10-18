@@ -20,6 +20,8 @@ from traceback import print_exc
 from matplotlib.colors import LogNorm
 DIRECTIONS = [(0, 1), (1,0), (0,-1), (-1, 0)]
 
+from .cmap import color
+
 h = scipy.constants.h
 hbar = h/2/np.pi
 cap_phi_0=h/(2*scipy.constants.e)
@@ -1587,7 +1589,7 @@ class Representation():
 #                    print('phi +/- = ', phi_pm)
                     angle = np.angle(phi_pm[0])
                     magni = np.abs(phi_pm[0])
-                    e = magni**2/Ltot*bl*(bl+np.sin(2*angle)*np.cos(bl))
+                    e = magni**2/Ltot*bl*(bl+np.sin(bl)*np.cos(2*angle))
 #                    print('energy_T =', e)
                     energy+= e
                 counter_T+=1
@@ -1660,8 +1662,8 @@ class Representation():
 #        print('res '+str(to_return))
         return to_return
 
-    def display_eom(self, ax, omegas, kappas=None, guesses=None):
-        if not(guesses is None):
+    def display_eom(self, ax, omegas, kappas=None, guesses=None, log_kappa=True):
+        if guesses is not None:
             eig_omegas, eig_phizpfs = self.solve_EIG(guesses, verbose=False)
         if kappas is None:
             dets = self.det_eom(omegas)
@@ -1673,17 +1675,40 @@ class Representation():
             ax.set_xlabel(r'$\omega/2\pi$')
             ax.set_ylabel(r'$\|Det(\omega)|$')
         else:
+            n_omega = len(omegas)
+            n_kappa = len(kappas)
             kappa_min = kappas[0]
             kappa_max = kappas[-1]
-            log_kappa_min = np.log(kappa_min)
-            log_kappa_max = np.log(kappa_max)
-            n_kappa = len(kappas)
-            log_kappas = np.linspace(log_kappa_min, log_kappa_max, n_kappa)
-            kappas = np.exp(log_kappas)
+            if log_kappa:
+                log_kappa_min = np.log(kappa_min)
+                log_kappa_max = np.log(kappa_max)
+                log_kappas = np.linspace(log_kappa_min, log_kappa_max, n_kappa)
+                kappas = np.exp(log_kappas)
+                domega = (omegas[1]-omegas[0])
+                dkappa = (kappas[1]/kappas[0])
+            else:
+                domega = (omegas[1]-omegas[0])
+                dkappa = (kappas[1]-kappas[0])
             _omegas, _kappas = np.meshgrid(omegas, kappas)
             Omegas = _omegas+1j*_kappas/2
             dets = self.det_eom(Omegas)
-            ax.imshow(np.log(np.abs(dets)), aspect='auto', extent=[omegas[0]/2/np.pi, omegas[-1]/2/np.pi, kappas[0]/2/np.pi, kappas[-1]/2/np.pi], origin='lower')#, aspect='equal'
+
+            if log_kappa:
+                omegas = omegas-domega/2
+                kappas = kappas/dkappa**0.5
+                end_omega = omegas[-1]+domega
+                end_kappa = kappas[-1]*dkappa
+                omegas = np.append(omegas, end_omega)
+                kappas = np.append(kappas, end_kappa)
+                _omegas, _kappas = np.meshgrid(omegas, kappas)
+                color_dets = color(dets, power=0.1)
+                color_tuples = color_dets.reshape(n_omega*n_kappa, 3).astype(float)
+                color_tuples = np.insert(color_tuples,3,1.0,axis=1)
+                m = ax.pcolormesh(_omegas/2/np.pi, _kappas/2/np.pi, np.imag(dets), color=color_tuples, linewidth=0)
+                m.set_array(None)
+            else:
+                ax.imshow(color(dets, power=0.1), aspect='auto', extent=[(omegas[0]-domega/2)/2/np.pi, (omegas[-1]+domega/2)/2/np.pi, (kappas[0]-dkappa/2)/2/np.pi, (kappas[-1]+dkappa/2)/2/np.pi], origin='lower')
+
             if not(guesses is None):
                 for ii, eig_omega in enumerate(eig_omegas):
                     kappa = 2*np.imag(eig_omega)
@@ -1696,7 +1721,8 @@ class Representation():
                         ax.plot(omega/2/np.pi, kappa_max/2/np.pi, '^', color='C%d'%ii, markeredgecolor='w')
             ax.set_xlabel(r'$\omega/2\pi$')
             ax.set_ylabel(r'$\kappa/2\pi$')
-            ax.set_yscale('log')
+            if log_kappa:
+                ax.set_yscale('log')
 
     def eig_phi(self, omega): # return the eig vector with smallest eigenvalue (expected 0)
                               # at a given frequency
