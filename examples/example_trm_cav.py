@@ -38,16 +38,9 @@ Ca = Dipole('Ca', 1/wa/Za)
 La = Dipole('La', Za/wa)
 Ta = Dipole('Ta', (np.pi/wa, Za), ground = G)
 
-# trm params
-wb = 2*np.pi*6
-Zb = 50
+Ll = Dipole('Ll', La.val/10)
+Lr = Dipole('Lr', La.val/10)
 
-# TRM dipoles (asymm)
-Cb = Dipole('Cb', 1/wb/Zb)
-Jb = Dipole('Jb', Zb/wb)
-
-# capa coup
-Cc = Dipole('Cc', Cb.val/10)
 
 # capa input
 Cg = Dipole('Cg', Cb.val/10)
@@ -63,7 +56,7 @@ circuit = [[ N, W, N,Cc, N,Ta, N,Cg, N],
            [Jb, _,Cb, _, _, _, _, _,R0],
            [ G, W, N, _, _, _, _, _, G]]
 
-circuit = [[ G,Cc, N,Ta, N, R0, G],
+circuit = [[ G,Ll, N,Ta, N, Lr, G],
            [ _, _, _, _, _, _, _],
            [ _, _, _, _, _, _, _]]
 

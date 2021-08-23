@@ -1920,6 +1920,7 @@ class Circuit(object):
 
         # Now solve DC representation
         # Be careful one should make any superconducting loop explicit for now
+        is_DC_loop=False
         if is_DC_loop:
             self.rep_DC = self.rep_raw_DC.convert_raw_to_eq()
             self.rep_DC.build_constrain('DC')
