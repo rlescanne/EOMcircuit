@@ -5,7 +5,7 @@ Created on Fri Jun 14 18:18:46 2019
 @author: Zaki
 """
 
-from functions import Dipole, Node, Hole, Circuit, Representation
+from EOMcircuit.functions import Dipole, Node, Hole, Circuit, Representation
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -19,15 +19,25 @@ hbar = h/2/np.pi
 phi0=hbar/(2*scipy.constants.e)
 sci = hbar/phi0**2
 
+W = Dipole('W')
+
+_ = None
+
+N = Node('') # expect this for dummy nodes
+G = Node('G')
+E = Node('E')
+
+F = Hole('F', 0)
+
 # storage params
 wa = 2*np.pi*4
 Za = 50
 
 # TRL storage
-Ta = Dipole('Ta', (np.pi/wa, Za))
+Ta = Dipole('Ta', (np.pi/wa, Za), ground = G)
 
 # trm params
-wt = 2*np.pi*6 
+wt = 2*np.pi*6
 Zt = 50
 
 # TRM dipoles (asymm)
@@ -43,15 +53,6 @@ Cg = Dipole('Cg', Ct.val/10)
 
 R0 = Dipole('R0', 50)
 
-W = Dipole('W')
-
-_ = None
-
-N = Node('') # expect this for dummy nodes
-G = Node('G')
-E = Node('E')
-
-F = Hole('F', 0)
 
 circuit = [[ N,W, N, W, N,Cc, N, Ta, N,Cg, N],
            [J1, F,J2, _,Ct, _,_, _, _, _,R0],
@@ -62,7 +63,7 @@ fig_circuit, ax_circuit = plt.subplots()
 c = Circuit(circuit) # parse circuit and much more is done
 c.plot(ax_circuit)
 
-    
+
 fig = plt.figure(figsize=(9,6))
 gs = gridspec.GridSpec(ncols=2, nrows = 2)
 gs.update(left=0.10, right=0.95, wspace=0.0, hspace=0.1, top=0.95, bottom =0.05)
