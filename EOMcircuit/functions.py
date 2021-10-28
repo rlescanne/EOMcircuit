@@ -20,13 +20,21 @@ from traceback import print_exc
 from matplotlib.colors import LogNorm
 DIRECTIONS = [(0, 1), (1,0), (0,-1), (-1, 0)]
 
-from .cmap import color
+# from .cmap import color
 
 h = scipy.constants.h
 hbar = h/2/np.pi
 cap_phi_0=h/(2*scipy.constants.e)
 phi0= cap_phi_0/2/np.pi
 sci = hbar/phi0**2
+
+e = 1.6e-19
+hbar = 1.05e-34
+phi0=hbar/2/e
+sci = hbar/phi0**2
+conv_L = 2*np.pi*hbar/(4*e*np.pi)**2 # conversion factor from LJ nH to EJ GHz
+conv_C = e**2/2/(hbar*2*np.pi)  # conversion factor from LJ nH to EJ GHz
+plt.close('all')
 
 
 C = 'cap'
@@ -1101,7 +1109,7 @@ class Hole():
             self.kind = M
 
     def copy_hole(self, circuit=None):
-        child = Hole(self.name, self.val, color=self.color, parent=self, circuit=circuit)
+        child = Hole(self.name, self.val, text=self.text, color=self.color, parent=self, circuit=circuit)
         self.children.append(child)
         return child
 
@@ -1122,7 +1130,11 @@ class Hole():
     #        print('print'+str(circle))
     #        ax.add_artist(circle)
             coor_text = self.coor-np.array([0, size])
-            ax.text(*coor_text, (r'$\varphi_{ext,%s}$'%(self.name[1:])), verticalalignment='top', horizontalalignment='center')
+            if self.text is None:
+                ax.text(*coor_text, (r'$\varphi_{ext,%s}$'%(self.name[1:])), verticalalignment='top', horizontalalignment='center')
+            else:
+                ax.text(*coor_text, self.text, verticalalignment='top', horizontalalignment='center')
+
         elif self.kind==M:
             width = 0.1
             length = 0.5
@@ -1576,9 +1588,9 @@ class Representation():
             if dipole.kind==R:
                 pass
             if dipole.kind==L:
-                energy+=1/dipole.val/2*np.abs(phi[ii])**2
+                energy+=conv_L/dipole.val/2*np.abs(phi[ii])**2
             if dipole.kind==J:
-                energy+=1/dipole.val/2*np.abs(phi[ii])**2*np.cos(dipole.phi_DC)
+                energy+=conv_L/dipole.val/2*np.abs(phi[ii])**2*np.cos(dipole.phi_DC)
             if dipole.kind==T:
                 if counter_T%2==0:
                     phi_se = np.array([phi[ii], phi[ii+1]])
@@ -1593,7 +1605,7 @@ class Representation():
                     magni = np.abs(phi_pm[0])
                     e = magni**2/Ltot*bl*(bl+np.sin(bl)*np.cos(2*angle))
 #                    print('energy_T =', e)
-                    energy+= e
+                    energy+= conv_L*e
                 counter_T+=1
 #        print('energy = ', energy)
         return energy
@@ -1763,7 +1775,9 @@ class Representation():
             if verbose:
                 print(eig_phi)
             mag = self.mag_energy(eig_omega, eig_phi) # find the magnetic energy of this configuration
-            prop = (4*mag/(sci*np.real(eig_omega)))**0.5 # factor to convert the phi configuration to a phi_zpf configuration
+            #prop = (4*mag/(sci*np.real(eig_omega)))**0.5 # factor to convert the phi configuration to a phi_zpf configuration
+            prop = (4*mag*2*np.pi/np.real(eig_omega))**0.5 # factor to convert the phi configuration to a phi_zpf configuration
+
             phi_zpf = np.real(eig_phi)/prop
 #            gamma_zpf = np.real(eig_gamma)/prop
             eig_phizpfs.append(phi_zpf)
