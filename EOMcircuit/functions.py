@@ -20,7 +20,7 @@ from traceback import print_exc
 from matplotlib.colors import LogNorm
 DIRECTIONS = [(0, 1), (1,0), (0,-1), (-1, 0)]
 
-# from .cmap import color
+from .cmap import color
 
 h = scipy.constants.h
 hbar = h/2/np.pi
@@ -1737,6 +1737,8 @@ class Representation():
             ax.set_ylabel(r'$\kappa/2\pi$')
             if log_kappa:
                 ax.set_yscale('log')
+        if guesses is not None: 
+            return eig_omegas, eig_phizpfs
 
     def eig_phi(self, omega): # return the eig vector with smallest eigenvalue (expected 0)
                               # at a given frequency
