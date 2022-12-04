@@ -409,8 +409,6 @@ def complete_with_identity(mat):
     ret_mat_c = np.eye(shape[1])
     choices = choice(maygo)
     for ii, elt in enumerate(choices):
-        print(elt)
-        print(ii)
         ret_mat[elt] = mat[ii]
 
     ret_mat_c = np.delete(ret_mat_c, choices, axis=1)
@@ -1312,7 +1310,7 @@ class Representation():
         for dipole in self.dipoles:
             column = np.zeros(nN)
             node_start, node_end = self.circuit.dipoles_nodes[dipole]
-            print(self.nodes)
+            # print(self.nodes)
             index_start = self.nodes.index(node_start.eq_node())
             index_end = self.nodes.index(node_end.eq_node())
             column[index_start]=-1
@@ -1328,7 +1326,7 @@ class Representation():
             if dipole.kind!=W:
                 dipole.plot_arrow(ax, size=1)
 
-    def find_loops(self): # returns loops in trigo way
+    def find_loops(self, debug=False): # returns loops in trigo way
         if len(self.A)!=0:
             if self.ker is None:
                 ker = find_ker(self.A)
@@ -1338,10 +1336,11 @@ class Representation():
                         ker[ii]=-loop
                 self.ker = ker
 
-            # printing
-            for loop in self.ker:
-                self.print_loop(loop)
-            print('')
+            if debug:
+                # printing
+                for loop in self.ker:
+                    self.print_loop(loop)
+                print('')
             return True
         else:
             print('No DC loops')
@@ -1381,26 +1380,9 @@ class Representation():
                 if hole_in_loop(hole, dipole_loop):
                     self.associated_phiext[jj].append(hole)
 
-
-#    def build_I_DC_nodes(self):
-#        list_res=[[] for k in range(len(self.nodes))]
-#        for source in Source_DC.source_DC_list:
-#            if source in Source_DC.source_DC_nodes:
-#                couple_node=Source_DC.source_DC_nodes[source]
-#                for (ii,node) in enumerate(self.nodes):
-#                    if node==couple_node[0]:
-#                        list_res[ii]=list_res[ii]+[(source,'+')]
-#                    elif node==couple_node[1]:
-#                        list_res[ii]=list_res[ii]+[(source,'-')]
-#        self.I_DC_nodes=list_res
-#        for (jj,elt) in enumerate(self.I_DC_nodes):
-#            self.I_DC_nodes[jj]=associated_string(elt, type_string='I_DC') #we can store the information like this with strings -> easier to plot + use of function eval
-#
-#
-
     def build_vec_I_DC(self):
-        print('build vec I DC')
-        print(self.dipoles)
+        # print('build vec I DC')
+        # print(self.dipoles)
         vec=[]
         for (ii, elt) in enumerate(self.dipoles):
             if elt.kind==I:
@@ -1416,11 +1398,11 @@ class Representation():
         self.vec_I_DC=vec
 
     def build_constrain(self, kind):
-        print('Build constrain '+kind)
+        # print('Build constrain '+kind)
         if self.dipoles is not None:
             n_phi = len(self.dipoles)
-            print('ker')
-            print(type(self.ker))
+            # print('ker')
+            # print(type(self.ker))
             if self.ker.shape != (0,):
                 constrain_mat, reshape_mat, choices = complete_with_identity(self.ker)
             else:
@@ -1431,23 +1413,22 @@ class Representation():
             F = inv @ reshape_mat
 
             self.F = F
-            print(F)
-            print(self.dipoles)
+            # print(F)
+            # print(self.dipoles)
             if kind=='DC':
                 constrain_vec = ['0' for ii in range(n_phi)]
                 for ii, choice in enumerate(choices):
                     associated_str = associated_string(self.associated_phiext[ii],type_string='flux')
                     constrain_vec[choice] = associated_str
                 f = matrix_product_str(inv, constrain_vec)
-                print(f)
+                # print(f)
                 self.f = f
-#                self.build_I_DC_nodes()
             self.independant_dipoles = [dipole for ii, dipole in enumerate(self.dipoles) if not(ii in choices)]
             self.build_vec_I_DC()
-            print('Vec I DC')
-            print(self.vec_I_DC)
-            print('Independant Dipoles')
-            print(self.independant_dipoles)
+            # print('Vec I DC')
+            # print(self.vec_I_DC)
+            # print('Independant Dipoles')
+            # print(self.independant_dipoles)
 
     def eval_f(self):
         f_eval = []
@@ -1765,8 +1746,14 @@ class Representation():
         gamma = v.T[np.argmin(np.abs(e)**2)]
         phi = self.F @ gamma
         return phi#, gamma
+    
+    def freq_zpf(self, verbose=False):
+        # check if only L and C -> do the eigenmode computation fast
+        pass
 
-    def solve_EIG(self, guesses, verbose=True):
+    def solve_EIG(self, guesses, verbose=False):
+
+
         if verbose:
             print('')
             print('#################')
@@ -1965,12 +1952,15 @@ class Circuit(object):
         self.rep_AC = Representation('equ', self, self.dipoles_AC)
         print('dipoles AC')
         print(self.rep_AC.dipoles)
-        print('nodes AC')
-        print(self.rep_AC.nodes)
-        print('ker')
-        print(self.rep_AC.ker)
+        if False:
+            # not really interesting to be printed
+            print('nodes AC')
+            print(self.rep_AC.nodes)
+            print('ker')
+            print(self.rep_AC.ker)
         self.rep_AC.find_loops()
-        self.rep_AC.build_constrain('AC')
+        self.rep_AC.build_constrain('AC')        
+
 
     def parse(self,):
         self.plotted_elt = set()
@@ -1991,29 +1981,12 @@ class Circuit(object):
                         else: # it is a flux
                             elt.assign_coor(self, array_to_plot((jj, ii)))
                     self.plotted_elt.add(elt)
-        # give relevant names to child dipoles
-#        for elt in self.plotted_elt:
-#            print(elt)
-#            if len(elt.children)>1:
-#                for ii, child in enumerate(elt.children):
-#                    child.name = elt.name+'%d'%ii
-#            elif len(elt.children)==1:
-#                elt.children[0].name = elt.name
-#            else:
-#                pass
-#
-
-        print(self.dipoles)
 
         name_elements(self.dipoles)
-
-        print(self.dipoles)
 
         dipoles = [dipole for dipole in self.dipoles]
         for dipole in dipoles:
             dipole.fill_dipoles()
-
-        print(self.dipoles)
 
         name_elements(self.nodes)
         name_elements(self.holes)
@@ -2038,32 +2011,6 @@ class Circuit(object):
         for elt in self.holes:
             elt.plot(ax, lw_scale=lw_scale)
         ax.set_aspect('equal')
-
-
-    def sweep(self, elt, vals, guesses):
-        list_eig_omegas = []
-        list_eig_phizpfs = []
-        current_guesses = guesses
-        guess_DC =None
-        for ii, val in enumerate(vals):
-            elt.val = val
-#            print(elt.val)
-            if elt.kind in [F, L, J] or ii==0: # then the DC solution changes
-                guess_DC = self.rep_DC.solve_DC(guess=guess_DC, verbose=False)
-                print('guess_DC')
-            try:
-                eig_omegas, eig_phizpfs = self.rep_AC.solve_EIG(current_guesses, verbose=False)
-#                print('solved')
-#                print(eig_omegas)
-            except Exception:
-                eig_omegas = np.ones((len(guesses),))*np.nan
-                eig_phizpfs = None
-            else:
-                current_guesses = eig_omegas
-                #TODO phizpfs
-            list_eig_omegas.append(eig_omegas)
-            list_eig_phizpfs.append(eig_phizpfs)
-        return np.array(list_eig_omegas).T, list_eig_phizpfs#np.array(list_eig_phizpfs).T
 
     def _build_dipoles_nodes(self):
         for dipole in self.dipoles:
@@ -2112,13 +2059,13 @@ class Circuit(object):
                 ref = group[list_bool.index(True)]
             else:
                 ref = max(set(group), key=group.count)
-            print(ref, group)
+            # print(ref, group)
             for node in group:
                 self.eq_nodes_dict[node]=ref
 
         eq_nodes = list(set(self.eq_nodes_dict.values()))
-        print(self.eq_nodes_dict)
-        print(eq_nodes)
+        # print(self.eq_nodes_dict)
+        # print(eq_nodes)
         # put ground first
         list_bool = [elt.name[0]=='G' for elt in eq_nodes]
         if any(list_bool):
@@ -2127,6 +2074,31 @@ class Circuit(object):
 
         self.eq_nodes = eq_nodes
 
+    def sweep(self, elt, vals, guesses):
+        list_eig_omegas = []
+        list_eig_phizpfs = []
+        current_guesses = guesses
+        guess_DC =None
+        for ii, val in enumerate(vals):
+            elt.val = val
+#            print(elt.val)
+            if elt.kind in [F, L, J] or ii==0: # then the DC solution changes
+                guess_DC = self.rep_DC.solve_DC(guess=guess_DC, verbose=False)
+                print('guess_DC')
+            try:
+                eig_omegas, eig_phizpfs = self.rep_AC.solve_EIG(current_guesses, verbose=False)
+#                print('solved')
+#                print(eig_omegas)
+            except Exception:
+                eig_omegas = np.ones((len(guesses),))*np.nan
+                eig_phizpfs = None
+            else:
+                current_guesses = eig_omegas
+                #TODO phizpfs
+            list_eig_omegas.append(eig_omegas)
+            list_eig_phizpfs.append(eig_phizpfs)
+        return np.array(list_eig_omegas).T, list_eig_phizpfs#np.array(list_eig_phizpfs).T
+
     def sweep_2_params(self,elt_1,vals_1,elt_2,vals_2,guesses):
         matrix_eig_omegas = []
 #        matrix_eig_phizpfs =[]
@@ -2134,7 +2106,7 @@ class Circuit(object):
         guess_DC=None
 
         if not(elt_1.kind in [F, L, J]) and elt_2.kind in [F, L, J]:
-                mat_guesses_omegas=sweep_2_params(self,elt_2,vals_2,elt_1,vals_1,guesses)
+                mat_guesses_omegas= self.sweep_2_params(self,elt_2,vals_2,elt_1,vals_1,guesses)
             #we go back to the case where elt1 is F,L,J and elt2 no.
         else:
             jj=0
@@ -2307,8 +2279,6 @@ class Circuit(object):
                             index_tab=[(jj_ind-1,ii_ind-1),(jj_ind-1,ii_ind),(jj_ind-1,ii_ind+1),(jj_ind,ii_ind+1),(jj_ind+1,ii_ind+1),(jj_ind+1,ii_ind),(jj_ind+1,ii_ind-1),(jj_ind,ii_ind-1)]
                             try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix_eig_omegas,jj_ind,ii_ind,index_tab)
 
-
-
             print('matrix size')
             print(np.array(matrix_eig_omegas).shape)
             ##Re-arrangement of the results, classified with guesses
@@ -2358,1250 +2328,3 @@ def try_to_solve(self,elt_1,vals_1,elt_2,vals_2,matrix, jj,ii,index_neighbours):
             ax_eom.set_title('ii = %d, jj = %d'%(ii, jj))
 
 
-#### FUNCTIONS USED IN INIT
-#
-#
-#    def display_modes(self, axs, fig):
-#        y_max = self.circuit_array.shape[0]
-#        range_jj = self.circuit_array.shape[0]//2+1
-#        range_ii = self.circuit_array.shape[1]//2+1
-#        modes = (self.P_display).T
-#        mode_nb = 0
-#        arrowss=[]
-#        positionss=[]
-#        directionss=[]
-#        thetas=[]
-#        for jj in range(len(modes)): #normalisation des modes
-#            modes[jj]=modes[jj]/np.amax(np.abs(modes[jj]))
-#        for jj in range(len(modes)):
-#            mode=modes[jj]
-#            ax=axs[jj]
-#            arrows =[]
-#            directions=[]
-#            positions=[]
-#            theta=0
-#            thetas.append(theta)
-#            for ii, D in enumerate(self.D_vec):
-##                theta = np.angle(mode[ii]) #+np.pi/2
-##                rotation=np.array([[np.cos(theta), np.sin(theta)],[-np.sin(theta), np.cos(theta)]])
-#                position, direction = self.dict_display[D]
-#                print(direction)
-#                positions.append(position)
-#                directions.append(direction)
-#                direction = direction*1.5*np.real(mode[ii]*np.exp(1j*theta))
-##                direction = np.abs(mode[ii])*rotation @ direction*1.5
-#                arrow = ax.annotate("", xy=(position[0]+direction[0]/2, position[1]+direction[1]/2),
-#                                xytext=(position[0]-direction[0]/2, position[1]-direction[1]/2),
-#                                arrowprops=dict(arrowstyle="->"))
-#                arrows.append(arrow)
-#            arrowss.append(arrows)
-#            positionss.append(positions)
-#            directionss.append(directions)
-#            ax.set_xlim(-1, self.circuit_array.shape[1])
-#            ax.set_ylim(-1, self.circuit_array.shape[0])
-#            ax.set_aspect('equal')
-#            ax.axis('off')
-##            ax.set_title(r'$\omega_c= $ %.3f + j*%.3f'%(self.omega0[mode_nb], self.kappa[mode_nb] ))
-#            for jj in range(range_jj):
-#                jj=jj*2
-#                for ii in range(range_ii):
-#                    ii=ii*2
-#                    ax.plot(ii, y_max-1-jj , '.', color='k')
-#            ax.set_title(r'Mode %d -- $\omega_c= $ %.3f + j*%.3f'%(mode_nb,self.omega0[mode_nb], self.kappa[mode_nb]), pad=-2)
-#            mode_nb+=1
-#        for ax in axs[len(modes):]:
-#            ax.axis('off')
-#            pass
-#
-#        def onclick_ax(event, axs):
-#            try:
-##                x, y = event.xdata, event.ydata
-#                curr_ax = event.inaxes
-#            except Exception:
-#                pass
-#            else:
-#                for jj, ax in enumerate(axs):
-#                    if curr_ax==ax:
-##                        print(jj)
-#                        arrows = arrowss[jj]
-#                        thetas[jj]+=np.pi/4
-##                        print(thetas[jj])
-#                        for ii, arrow in enumerate(arrows):
-#                            theta=thetas[jj]
-#                            direction=directionss[jj][ii]
-#                            position=positionss[jj][ii]
-#                            direction = direction*1.5*np.real(modes[jj, ii]*np.exp(1j*theta))
-#
-#                            arrow.xy=(position[0]+direction[0]/2, position[1]+direction[1]/2) # fleche
-#                            arrow.set_position((position[0]-direction[0]/2, position[1]-direction[1]/2)) # queue
-##                if curr_ax==ax:
-##                    ii = np.argmin(np.abs(Re-x))//shape_I
-##                    jj = np.argmin(np.abs(Im-y))//shape_Q
-##                    if state[jj,ii]==0:
-##                        wig_global[shape_Q*jj:shape_Q*(jj+1), shape_I*ii:shape_I*(ii+1)] = np.copy(wig_plots[1][shape_Q*jj:shape_Q*(jj+1), shape_I*ii:shape_I*(ii+1)])
-##                        state[jj,ii]=1
-##                    else:
-##                        wig_global[shape_Q*jj:shape_Q*(jj+1), shape_I*ii:shape_I*(ii+1)] = np.copy(wig_plots[0][shape_Q*jj:shape_Q*(jj+1), shape_I*ii:shape_I*(ii+1)])
-##                        state[jj,ii]=0
-##                    im.set_data(wig_global)
-#                event.canvas.draw()
-#
-#        fig.canvas.mpl_connect('button_press_event', lambda event : onclick_ax(event, axs))
-#
-
-
-    def RLC_mat(self, dipoles_val):
-        self.rescale_time=1e9
-        n_dipoles = len(self.D_vec)
-        C_mat = np.zeros((n_dipoles, n_dipoles))
-        oL_mat = np.zeros((n_dipoles, n_dipoles))
-        oR_mat = np.zeros((n_dipoles, n_dipoles))
-        oJ_mat = np.zeros((n_dipoles, n_dipoles))
-        for ii, elt in enumerate(self.D_vec):
-            if elt[0]=='C':
-                C_mat[ii,ii]=dipoles_val[elt]
-            elif elt[0]=='L':
-                oL_mat[ii,ii]=1/dipoles_val[elt]
-            elif elt[0]=='R':
-                oR_mat[ii,ii]=1/dipoles_val[elt]
-            elif elt[0]=='J':
-                oJ_mat[ii,ii]=1/dipoles_val[elt]
-            else:
-                if not(elt[0]=='F') and not(elt[0]=='J'):
-                    raise ValueError('%s is not a R, L, C dipole, not a JJ, and is not a phiext'%elt)
-        self.oR_mat = oR_mat*phi0**2/hbar*self.rescale_time/1e9
-        self.oL_mat = oL_mat*phi0**2/hbar/1e9
-        self.oJ_mat = oJ_mat*phi0**2/hbar/1e9
-        self.C_mat = C_mat*phi0**2/hbar*self.rescale_time**2/1e9
-        return oR_mat, oL_mat, C_mat
-
-    def find_D_AT_ArawT(self, circuit, coors):
-        # let's obligatory start from ground
-        self.dict_display = {}
-        y_max = circuit.shape[0]
-        _circuit = np.copy(circuit)
-        to_D = []
-        to_A_T = []
-        to_coors = []
-        for coor in coors:
-    #        search all direction
-            for direction in DIRECTIONS:
-                try:
-                    if _circuit[coor + direction] != '':
-                        coor_dipole = coor + direction
-                        dipole = _circuit[coor_dipole]
-                        _circuit[coor_dipole]=''
-                        new_coor = coor_dipole + direction
-                        to_D.append(dipole)
-                        to_A_T.append([coor, new_coor])
-                        to_coors.append(new_coor)
-                except Exception:
-                    pass
-        if len(to_coors)!=0:
-            D, A_T, A_raw_T, nodes, nodes_raw, nodes_type, nodes_type_raw = self.find_D_AT_ArawT(_circuit, to_coors)
-        else:
-            D, A_T, A_raw_T, nodes, nodes_raw, nodes_type, nodes_type_raw = [], [], [], [], [], [], []
-        D += to_D
-        for edge in to_A_T:
-            #print('edge', edge)
-           #A_raw_T bypass the condition "checking if one of the summit of the edge ==ground"
-            if not (edge[0] in nodes_raw):
-                nodes_raw.append(edge[0])
-                nodes_type_raw.append(circuit[edge[0]])
-            index_first_node_raw=nodes_raw.index(edge[0])
-            if not(edge[1] in nodes_raw):
-                nodes_raw.append(edge[1])
-                nodes_type_raw.append(circuit[edge[1]])
-            index_second_node_raw = nodes_raw.index(edge[1])
-
-            A_raw_line=np.zeros(len(nodes_raw))
-            A_raw_line[index_first_node_raw] =-1
-            A_raw_line[index_second_node_raw] =1
-            A_raw_T.append(A_raw_line)
-
-            if circuit[edge[0]]=='ground':
-                index_first_node = 0
-            else:
-                if not (edge[0] in nodes):
-                    nodes.append(edge[0])
-                    nodes_type.append(circuit[edge[0]])
-                index_first_node = nodes.index(edge[0])+1
-
-            if circuit[edge[1]]=='ground':
-                index_second_node = 0
-            else:
-                if not (edge[1] in nodes):
-                    nodes.append(edge[1])
-                    nodes_type.append(circuit[edge[1]])
-                index_second_node = nodes.index(edge[1])+1
-            A_line = np.zeros(len(nodes)+1)
-            A_line[index_first_node] = -1
-            A_line[index_second_node] = 1
-            A_T.append(A_line)
-            #print('Pline',P_line, '\n')
-            coor_edge = [edge[0], edge[1]]
-
-            # display arrows
-            dipole_coor = coor_edge[0]//2+coor_edge[1]//2
-            if circuit[dipole_coor]!='wire' and circuit[dipole_coor][0]!='T':
-                arrow_coor = dipole_coor/2+coor_edge[1]/2
-                end_coor = dipole_coor/2+coor_edge[0]/2
-                position = [(arrow_coor[1]+end_coor[1])/2, y_max-1-(arrow_coor[0]+end_coor[0])/2]
-                direction = [(arrow_coor[1]-end_coor[1]), -(arrow_coor[0]-end_coor[0])]
-                self.dict_display[circuit[dipole_coor]] = [np.array(position), np.array(direction)]
-                if arrow_coor[1]==end_coor[1]:
-                    # vertical arrow
-                    self.ax.annotate("", xy=(arrow_coor[1]+0.3, y_max-1-arrow_coor[0]),
-                                xytext=(end_coor[1]+0.3, y_max-1-end_coor[0]),
-                                arrowprops=dict(arrowstyle="->"))
-                if arrow_coor[0]==end_coor[0]:
-                    # horizontal arrow
-                    self.ax.annotate("", xy=(arrow_coor[1], y_max-1-arrow_coor[0]+0.3),
-                                xytext=(end_coor[1], y_max-1-end_coor[0]+0.3),
-                                arrowprops=dict(arrowstyle="->"))
-        return D, A_T, A_raw_T, nodes, nodes_raw, nodes_type, nodes_type_raw
-
-
-######## LOOPS AND PHI EXT #######
-    def to_loop_without_wire(self,loop):
-        #takes a loop expressed in physical way, returns the list of the same loops but expressed in "logical" way (P, D_vec)
-        loop_res=[]
-        for i in range(self.rep_raw.nD): #the loop has the same length D_vec_raw
-            if not(self.rep_raw.D[i]=='wire'):
-                loop_res.append(loop[i])
-        return(loop_res)
-
-    def associate_physical_loop_with_phiext_sum(self):
-             #returns the tab of coordinates of [phiext1,phiext2,...] returns table [[ind_loop, ind_loop'], [],] where phiext1 is inside the loop, loop'.
-            self.loops_raw = self.rep_raw.find_loops()
-            list_edges_loop= [self.rep_raw.get_edges_loop(loop) for loop in self.loops_raw]
-            self.phiext_sum = []
-            for edges_loop in list_edges_loop: # for every loop
-                str_phiext_sum=''
-                for coor_phiext in self.list_coor_phiext: # is a given phiext inside
-                    if point_in_a_loop(coor_phiext, edges_loop):
-                        str_phiext_sum+=self.circuit_array[coor_phiext]+'+' # right analytical formula of fluxes in given loop
-                self.phiext_sum.append(str_phiext_sum[:-1])
-
-    def find_ker_A(self): # construct a good basis for ker A
-                          # it contains first the physical loops (loops of rep_raw)
-                          # and then complete with orthogonal vectors to a basis of ker A
-        ker_raw=self.loops_raw
-        ker=self.rep.find_loops()
-        if len(ker_raw)==0:
-            self.ker_logical=np.array(ker)
-            self.ker_physical=ker_raw
-            self.constrains=np.array(ker)
-
-        # we translate the loops of ker_raw without wire
-        else:
-            ker_physical=[]
-            for loop in ker_raw:
-                ker_physical.append(self.to_loop_without_wire(loop))
-            ker_physical=np.array(ker_physical)
-            ker_res=np.copy(ker_physical) # full constrains eventually
-            ker_logical=[] # constrains withou external flux coming from rep
-
-            for vec in ker:
-                print('vec', vec)
-                print('Ker_res', ker_res)
-                dim=ker_res.shape[0]
-                ker_res_test=np.append(ker_res,np.array([vec]),axis=0)
-    #            print('ker res test \n', ker_res_test)
-                if nl.matrix_rank(ker_res_test)==dim+1 : #ie independent family.
-                   ker_res=ker_res_test
-                   ker_logical.append(vec)
-            self.ker_logical=np.array(ker_logical)
-            self.ker_physical=ker_physical
-            self.constrains=ker_res
-        print('\n#### Basis of constrains ####')
-        print('Physical loops')
-        for loop in self.ker_physical:
-            print(self.rep.translate_loop(loop))
-        print('\nLogical loops')
-        for loop in self.ker_logical:
-            print(self.rep.translate_loop(loop))
-        print('############ \n')
-
-        # store edges of physical_loops
-
-        return(self.ker_physical, self.ker_logical, self.constrains)
-
-#    def find_constrains_with_phiext(self):
-#        list_ind_phi_pos=[]
-#        list_ind_phi_neg=[]
-#        list_phi_str=[]
-#        coor_phi, associated_loops, associated_loops_edges=self.associate_physical_loop_with_phiext()
-#        for loop in self.ker_physical:
-#           res_str, phi_positive, phi_negative=self.sum_phiext_loop(loop)
-#           if res_str=='':
-#               res_str='0' #for homogeneity of the notations
-#           list_phi_str.append(res_str)
-#           list_ind_phi_pos.append(phi_positive)
-#           list_ind_phi_neg.append(phi_negative)
-#        for loop in self.ker_logical:
-#            list_phi_str.append('0')
-#        self.list_phiext_str=list_phi_str
-#        self.list_ind_phi_positive=list_ind_phi_pos
-#        self.list_ind_phi_negative=list_ind_phi_neg
-
-####### APPLY CONSTRAINS AND SOLVE  ######
-
-
-    def find_constrains(self):
-        ker = find_ker(self.A)
-        self.constrains = ker
-        print('constrains')
-        for loop in self.constrains:
-            print(self.rep.translate_loop(loop))
-        print('')
-        return ker
-
-#    seems deprecated
-#    def apply_voltage_constrains(self, let):
-#        print('%d variables will disappear'%(len(self.constrains)))
-#        if let==[]:
-#            list_ind = []
-#            for elt in self.D_vec:
-#                if elt[0]=='L':
-#                    list_ind.append(elt)
-#            if len(self.constrains)<= len(list_ind):
-#                list_disappear = list_ind[:len(self.constrains)] # easier to make L disappear since C_mat_c will stay diagonal
-#            else:
-#                list_cap = []
-#                for elt in self.D_vec:
-#                    if elt[0]=='C':
-#                        list_cap.append(elt)
-#                list_disappear = list_ind+list_cap[:len(self.constrains)-len(list_ind)]
-#        else:
-#            list_disappear = let
-#        print('%s variables will disappear'%(list_disappear))
-#        indices = []
-#        Pc = np.eye(len(self.D_vec))
-#        for constrain in self.constrains:
-#            for ii, elt in enumerate(self.D_vec):
-#                if elt in list_disappear:
-#                    if constrain[ii]!=0: #to be able to inverse the constrains matrix
-#                        Pc[ii]=constrain
-#                        indices.append(ii)
-#                        list_disappear.remove(elt)
-#                        break
-#        print('')
-#        inv_Pc = nl.inv(Pc)
-#        inv_Pc = np.delete(inv_Pc, indices, axis=1)
-#        self.Pc =inv_Pc
-#
-#        self.C_mat_c = inv_Pc.T @ self.C_mat @ inv_Pc
-#        self.oL_mat_c = inv_Pc.T @ self.oL_mat @ inv_Pc
-#        self.oR_mat_c = inv_Pc.T @ self.oR_mat @ inv_Pc
-
-    def constrains_contain_dipole(self):
-        res_constrains=[]
-        for (dipole_ind,dipole) in enumerate(self.D_vec):
-            temp_constrains=[]
-            for (ind_c,c) in enumerate(self.constrains):
-                if c[dipole_ind]!=0:
-                    temp_constrains.append(ind_c)
-            res_constrains.append(temp_constrains)
-        return(res_constrains)
-        #res_constrains is a list that contains at indices of dipole the list of indices of constrains in which the dipole is present
-
-    def apply_constrains(self,let):
-        #prepare the phi_tilde vector
-        print('\n### Applying constrains ###')
-        print('%d variables will disappear'%(len(self.constrains)))
-        if let==[]:
-            list_ind = []
-            for elt in self.D_vec:
-                if elt[0]=='L' or elt[0]=='J':
-                    list_ind.append(elt)
-            if len(self.constrains)<= len(list_ind):
-                list_disappear = list_ind[:len(self.constrains)] # easier to make L disappear since C_mat_c will stay diagonal
-            else:
-                list_cap = []
-                for elt in self.D_vec:
-                    if elt[0]=='C':
-                        list_cap.append(elt)
-                list_disappear = list_ind+list_cap[:len(self.constrains)-len(list_ind)]
-        else:
-            list_disappear = let
-            #list_disappear contains the variables that will disappear
-        print('%s variables should disappear in priority \n '%(list_disappear))
-        print('constructing Pc...')
-        #we check for dipole in priority in not the constrains matrix to see if they vector [0,..,0,1,0,...0] fits in free matrix
-        #print('Apply constrains bis')
-        matrix_test=np.copy(self.constrains)
-        N_dipoles=len(self.D_vec)
-        indices_free_variables=[]
-        for (ii,dipole) in enumerate(self.D_vec):
-            if not (dipole in list_disappear) : # we put priority in the variable we decide not to let free
-                vec=np.zeros((1,N_dipoles))
-                vec[0][ii]=1
-                matrix_test_1=np.append(matrix_test,vec, axis=0)
-                if nl.matrix_rank(matrix_test_1)==matrix_test_1.shape[0]:
-                    matrix_test=matrix_test_1
-                    indices_free_variables.append(ii)
-                else :
-                    print('Warning : the variable %s was supposed to stay independent. It will disappear'%(self.D_vec[ii]))
-        #If not all constrains had been applied we go into the following loop
-        ii=0
-        while matrix_test.shape[0]<N_dipoles and ii<N_dipoles:
-            dipole=self.D_vec[ii]
-            if dipole in list_disappear:
-                vec=np.zeros((1,N_dipoles))
-                vec[0][ii]=1
-                matrix_test_1=np.append(matrix_test,vec, axis=0)
-                if nl.matrix_rank(matrix_test_1)==matrix_test_1.shape[0]:
-                    matrix_test=matrix_test_1
-                    indices_free_variables.append(ii)
-                    print('Warning : the variable %s was supposed to disappear will stay independent'%(self.D_vec[ii]))
-            ii+=1
-            #Now, we reconstruct the constrains matrix. The order of constrains line is not important
-        #print('reconstruction')
-        Pc=np.eye(N_dipoles)
-        list_phi_constrains=[]
-        ind_c=0
-        for ind in range(N_dipoles):
-            if ind in indices_free_variables:
-                list_phi_constrains.append('0')
-                #we do not change the matrix line
-            if not(ind in indices_free_variables):
-                Pc[ind]=self.constrains[ind_c]
-                list_phi_constrains.append(self.list_phiext_str[ind_c])
-                ind_c+=1
-
-        #to have the lists of the variable that are free and the variables that will disappear
-        dipoles_disappear=[]
-        indices_disappear=[]
-        dipoles_free=[]
-        for (ii, dipole) in enumerate(self.D_vec):
-            if ii in indices_free_variables :
-                dipoles_free.append(self.D_vec[ii])
-            else:
-                dipoles_disappear.append(self.D_vec[ii])
-                indices_disappear.append(ii)
-        print('\n%s variables will disappear'%(dipoles_disappear))
-        print('%s variables will be free'%(dipoles_free))
-        print('Matrix of constrains (Pc) : \n', Pc)
-        print('List of phi constrains associated :', list_phi_constrains)
-
-        #the matrices
-        inv_Pc=nl.inv(Pc)
-        #print('inv \n',inv_Pc)
-         #We prepare the matrix with
-        inv_Pc_reduced=np.delete(inv_Pc, indices_disappear, axis=1)
-        print('\nInverse of Pc :\n', inv_Pc)
-        print('Inverse of Pc reduced (only the columns of the free variables are kept): \n',inv_Pc_reduced)
-        self.Pc=Pc
-        self.inv_Pc=inv_Pc
-        self.inv_Pc_reduced=inv_Pc_reduced
-        self.list_phi_constrains_str=list_phi_constrains
-        return(Pc, indices_free_variables)
-
-
-
-#    def apply_constrains_bis(self,let):
-#        #prepare the phi_tilde vector
-#        print('%d variables will disappear'%(len(self.constrains)))
-#        if let==[]:
-#            list_ind = []
-#            for elt in self.D_vec:
-#                if elt[0]=='L' or elt[0]=='J':
-#                    list_ind.append(elt)
-#            if len(self.constrains)<= len(list_ind):
-#                list_disappear = list_ind[:len(self.constrains)] # easier to make L disappear since C_mat_c will stay diagonal
-#            else:
-#                list_cap = []
-#                for elt in self.D_vec:
-#                    if elt[0]=='C':
-#                        list_cap.append(elt)
-#                list_disappear = list_ind+list_cap[:len(self.constrains)-len(list_ind)]
-#        else:
-#            list_disappear = let
-#            #list_disappear contains the variables that will disappear
-#        print('%s variables will disappear'%(list_disappear))
-#
-#        #we travel over the list_disapear
-#        print('### Check apply_contrains_bis ###')
-#        print(self.D_vec)
-#        print(self.constrains)
-#        list_phi_constrains=[]
-#        indices_that_really_disappear = []
-#        constrains_of_dipole=self.constrains_contain_dipole()
-#        used_constrains=[] #save the indices of the used constrains
-#        Pc = np.eye(len(self.D_vec))
-#        for (ii,dipole) in enumerate(self.D_vec):
-#            print('current dipole', dipole)
-#            print('Pc \n', Pc)
-#            print('used constrains', used_constrains)
-#            if dipole in list_disappear:
-#                print('dipole will disappear')
-#                available_constrains_ind=constrains_of_dipole[ii]
-#                print('constrains available', available_constrains_ind)
-#                no_constrains_found=True
-#                for ind_c in available_constrains_ind:
-#                    if not(ind_c in used_constrains):
-#                        print ('counstrain found', ind_c)
-#                        Pc[ii]=self.constrains[ind_c]
-#                        no_constrains_found=False
-#                        used_constrains.append(ind_c)
-#                        indices_that_really_disappear.append(ii)
-#                        list_phi_constrains.append(self.list_phiext_str[ind_c])
-#                        break
-#                if no_constrains_found :
-#                    print('Warning : we could not make %s variable disappear'%dipole)
-#            else:
-#                list_phi_constrains.append(0)
-#                #no need to change the matrix Pc
-#
-#        # In the case where all the variable of the list could not disappear, we need to take arbitrary variables
-#        not_disappear_yet=len(self.constrains)-len(indices_that_really_disappear)
-#        if not_disappear_yet !=0:
-#            print('We complete the constrains')
-#            for i in range(not_disappear_yet):
-#                print('step', i)
-#                constrain_found=False
-#                for (ii,dipole) in enumerate(self.D_vec):
-#                    if not(dipole in list_disappear):
-#                        print('current dipole',dipole)
-#                        available_constrains_ind=constrains_of_dipole[ii]
-#                        for ind_c in available_constrains_ind:
-#                            if not(ind_c in used_constrains):
-#                                 print ('counstrain found', ind_c)
-#                                 Pc[ii]=self.constrains[ind_c]
-#                                 constrain_found=True
-#                                 used_constrains.append(ind_c)
-#                                 indices_that_really_disappear.append(ii)
-#                                 list_phi_constrains.append(self.list_phiext_str[ind_c])
-#                                 break
-#                        if constrain_found:
-#                            break
-#        print('The indices of dipoles which have disappeared %s'%( indices_that_really_disappear))
-#        print('Pc  \n', Pc)
-#        inv_Pc=nl.inv(Pc)
-#        print('inv',inv_Pc)
-#        return(Pc)
-
-
-
-#####  GET THE NORMAL MODES
-
-    def list_indices(self):
-        #functions that defines list_indJJ, ind as instance variables
-        l_indices_JJ=[]  #list that contains the indices of the JJ in the D_vec
-        l_indices_ind=[] #list that contains the indices of the inductances in the D_vec
-        l_indices_trl=[] #list that contains the indices of the transmission lines in the D_vec,
-                         # trl are inductors in DC
-        for (ii,elt) in enumerate(self.D_vec):
-            if elt[0]=='L':
-                l_indices_ind.append(ii)
-            if elt[0]=='J':
-                l_indices_JJ.append(ii)
-            if elt[0]=='R':
-                l_indices_trl.append(ii)
-        self.l_indices_ind=l_indices_ind
-        self.l_indices_trl=l_indices_trl
-        self.l_indices_JJ=l_indices_JJ
-        return(self.l_indices_ind, self.l_indices_JJ, self.l_indices_trl)
-
-
-    def derivative_U(self, n, dipoles_val):
-        #returns a function that takes a vector phi and calculate dU/dphi at the order n in 1 to 4
-        if n<0:
-            raise ValueError('n must be larger than 0')
-        def derivate(phi_vec): #the argument is a vector of 'cap_phi'(cap_phi= in coincidences with indices of D_vec
-            N_dipoles=len(phi_vec)
-            dU_res=np.zeros((N_dipoles,)*n)
-            U_order_0=0
-            for ii in range(len(phi_vec)):
-                t=(ii,)*n
-                if n==0:
-                #print(dipoles_val[self.D_vec[ii]])
-                    U_order_0+=self.oL_mat[ii, ii]*phi_vec[ii]**2/2
-                    U_order_0+=-self.oJ_mat[ii, ii]*np.cos(phi_vec[ii])
-                if n==1:
-                    dU_res[t]+=self.oL_mat[ii, ii]*phi_vec[ii]
-                if n==2:
-                    dU_res[t]+=self.oL_mat[ii, ii]
-                if n%4==0 and n!=0:
-                    dU_res[t]+=-self.oJ_mat[ii, ii]*np.cos(phi_vec[ii]) #convention here: the value stored in the dictionnary dipoles_val is in LJ (and not in energy)
-                if n%4==1:
-                    dU_res[t]+=self.oJ_mat[ii, ii]*np.sin(phi_vec[ii])
-                if n%4==2:
-                    dU_res[t]+=self.oJ_mat[ii, ii]*np.cos(phi_vec[ii])
-                if n%4==3:
-                    dU_res[t]+=-self.oJ_mat[ii, ii]*np.sin(phi_vec[ii])
-            if n==0:
-                dU_res=U_order_0
-            return(dU_res)
-        return(derivate)
-
-    def convert_values_phiext(self,dipoles_val):
-        vec_phi_sum=[]
-#        print('Check convert values')
-        for ind_c in range(self.Pc.shape[0]):
-            phi_sum=0
-            string=self.list_phi_constrains_str[ind_c]
-#            print('\n ind', ind_c)
-#            print(string)
-            if string=='0':
-                vec_phi_sum.append(0)
-            else:
-                l_parse=string.split('F')
-#                print(l_parse)
-                for ind in range(len(l_parse)-1):
-#                    print(l_parse[ind])
-                    if l_parse[ind][-1]=='+':
-                        if l_parse[ind+1][-1] =='+' or l_parse[ind+1][-1] =='-':
-                            name_phi='F'+l_parse[ind+1][:-1]
-                        else:
-                            name_phi='F'+l_parse[ind+1]
-                        phi_sum+=dipoles_val[name_phi]
-                    else: #means there is a minus
-                        if l_parse[ind+1][-1] =='+' or l_parse[ind+1][-1] =='-':
-                            name_phi='F'+l_parse[ind+1][:-1]
-                        else:
-                            name_phi='F'+l_parse[ind+1]
-                        phi_sum-=dipoles_val[name_phi]
-                vec_phi_sum.append(phi_sum)
-#        print(vec_phi_sum)
-        self.vec_phiext=vec_phi_sum
-
-#
-#    def convert_values_phi(self, dipoles_val):
-#        vec_phi_sum=[]
-##        print('Check convert_values')
-##        print(self.Pc)
-#        for (ind_c,constrains) in enumerate(self.Pc) :
-#            phi_sum=0
-##            print('Indices',ind_c)
-##            print('phi',self.list_phi_constrains_str[ind_c])
-#            if self.list_phi_constrains_str[ind_c]=='0':
-#                #print('0')
-#                vec_phi_sum.append(0)
-#            else:
-#                for coor_phip in self.list_ind_phi_positive[ind_c] :
-#                    str_phi=self.circuit_array[coor_phip]
-#                    phi_sum+=dipoles_val[str_phi]
-#                for coor_phim in self.list_ind_phi_negative[ind_c]:
-#                    str_phi=self.circuit_array[coor_phim]
-#                    phi_sum-=dipoles_val[str_phi]
-#            vec_phi_sum.append(phi_sum)
-##            print(vec_phi_sum)
-#        self.vec_phiext=np.array(vec_phi_sum)
-##        print('Convert value phi',self.vec_phiext)
-#        return(self.vec_phiext)
-
-    def derivative_U_(self,n,dipoles_val, P=None): #P is the basis change matrix
-        if P is None:
-            P = np.eye(self.inv_Pc_reduced.shape[1])
-        def derivate_(phi_vec_tilde):
-#            print("phi tilde",phi_vec_tilde)
-            phi_vec = self.inv_Pc_reduced @ (P @ phi_vec_tilde + self.phi_min_tilde) + self.inv_Pc@ self.vec_phiext
-#            print("phi", phi_vec)
-            if n==0:
-                function_value=self.derivative_U(0, dipoles_val)
-                dU_res_=np.array(function_value(phi_vec)) #to return an array as other cases
-            else:
-                permutations = tuple_list(n)
-                function_derivate=self.derivative_U(n,dipoles_val)
-                dU_res_ = function_derivate(phi_vec)
-#                print('func deriv')
-#                print(function_derivate(phi_vec))
-                for permutation in permutations:
-
-                    #            print(P.shape, _HessnL.shape)
-
-#                    print('permutation')
-#                    print(permutation)
-#                    matrice=np.transpose(dU_res_, permutation)
-#                    print('First term \n',matrice)
-#                    print('P complete \n', self.inv_Pc_reduced@P)
-#                    print('shapes')
-#                    print((self.inv_Pc_reduced@P).shape)
-#                    print(matrice.shape)
-#                    matrice_dot=  matrice @ self.inv_Pc_reduced@P
-#                    print('dot  \n', matrice_dot)
-                    dU_res_= np.transpose(np.transpose(dU_res_, permutation) @ (self.inv_Pc_reduced @ P), permutation)
-#                    dU_res_ = np.transpose(P @ np.transpose(function_derivate(phi_vec), permutation) , permutation)
-#            print('dU_res')
-#            print(dU_res_)
-            return(dU_res_)
-        return(derivate_)
-
-
-    def Utominimize(self, phi_vec_tilde, dipoles_val):
-        function_U=self.derivative_U_(0, dipoles_val)
-        res_U=function_U(phi_vec_tilde)
-        return(res_U)
-
-
-    def minimize(self, str_method, dipoles_val):
-        vec_phi_init=np.zeros(self.inv_Pc_reduced.shape[1])
-        res=minimize(self.Utominimize, vec_phi_init, args=(dipoles_val), method=str_method)# ,tol=1e-12) #method 'Powell' could be good also
-        if not res.x.shape:
-            phi_min_tilde = np.array([res.x])
-        else:
-            phi_min_tilde = res.x
-        #print('Minimize',res)
-        self.phi_min_tilde = phi_min_tilde
-        return(self.phi_min_tilde)
-
-    def get_inv_dipoles_val_linearized(self, dipoles_val):
-        dipoles_val_linearized=dipoles_val.copy()
-        for ind_JJ in self.l_indices_JJ:
-            JJ_name=self.D_vec[ind_JJ]
-            phi_min_vec = self.inv_Pc_reduced @ self.phi_min_tilde + self.inv_Pc@ self.vec_phiext
-            dipoles_val_linearized[JJ_name]=dipoles_val[JJ_name]/np.cos(phi_min_vec[ind_JJ])
-        self.dipoles_val_linearized=dipoles_val_linearized
-        return(dipoles_val_linearized)
-
-    def get_dipoles_admittance(self, dipoles_val):
-#        self.get_dipoles_val_linearized(dipoles_val)
-        power = []
-        dipoles_val_loc =dipoles_val.copy()
-        phi_min_vec = self.inv_Pc_reduced @ self.phi_min_tilde + self.inv_Pc@ self.vec_phiext
-#        print('Phi min', phi_min_vec)
-        for elt in dipoles_val_loc:
-            if elt[0]=='R':
-                dipoles_val_loc[elt]=1/dipoles_val_loc[elt]
-                power.append(0)
-            elif elt[0]=='L':
-                dipoles_val_loc[elt]=1/dipoles_val_loc[elt]
-                power.append(-1)
-            elif elt[0]=='J':
-                ind_JJ=list(self.D_vec).index(elt)
-                dipoles_val_loc[elt]=np.cos(phi_min_vec[ind_JJ])/dipoles_val[elt]
-                power.append(-1)
-            elif elt[0]=='C':
-                power.append(1)
-            elif elt[0]=='F':
-                power.append(0)
-            else:
-                raise ValueError('%s is not a R, L, C dipole, not a JJ, and is not a phiext'%elt)
-
-
-        def dico(omega):
-            dic = {}
-#            print(dipoles_val_loc)
-#            print(power)
-            for ii, elt in enumerate(dipoles_val_loc):
-#                print('ind', ii)
-#                print('elt', elt)
-                dic[elt] = dipoles_val_loc[elt]*(1j*omega)**power[ii]
-            return dic
-        return dico
-
-    def get_oL_matrix(self, dipoles_val, print_bool):
-        function_Hess=self.derivative_U_(2,dipoles_val)
-#        print('phi_min_tilde', self.phi_min_tilde)
-        center = np.zeros(len(self.phi_min_tilde))
-        self.oL_matrix=function_Hess(center) #because it was in energy before
-        if print_bool:
-            print('Inductance matrix \n' ,self.oL_matrix)
-        self.oL_mat_c = self.oL_matrix
-        return(self.oL_matrix)
-
-    def get_C_matrix(self, print_bool):
-        self.C_mat_c = self.inv_Pc_reduced.T @ self.C_mat @ self.inv_Pc_reduced
-        if print_bool:
-            print('Capacitance matrix \n', self.C_mat_c)
-        return(self.C_mat_c)
-
-
-    def get_oR_matrix(self, print_bool):
-        self.oR_mat_c=self.inv_Pc_reduced.T @ self.oR_mat @ self.inv_Pc_reduced
-        if print_bool:
-            print('Resistor matrix \n', self.oR_mat_c)
-        return(self.oR_mat_c)
-
-
-    def zero_C_mat_c(self, print_bool):
-        # enforce C=0 as current law ?
-        e, v = nl.eigh(self.C_mat_c)
-
-        C_mat_c_diag = v.T @ self.C_mat_c @ v
-        oL_mat_c_diag = v.T @ self.oL_mat_c @ v
-        if print_bool:
-#            print('zero C mat')
-            print('Cmat_diag',C_mat_c_diag )
-            print('Diag Cmat_diag',np.diag(C_mat_c_diag))
-            print('L mat diag',oL_mat_c_diag)
-        indices = []
-        Pc = np.eye(len(C_mat_c_diag))
-        dU_dphi = np.copy(oL_mat_c_diag)
-        for ii, C in enumerate(np.diag(C_mat_c_diag)):
-            if equal_float(C,0):
-                indices.append(ii)
-                Pc[ii]= v @ dU_dphi[ii] # constrain
-
-        inv_Pc = nl.inv(Pc)
-        inv_Pc = np.delete(inv_Pc, indices, axis=1)
-
-        self.Pcc = inv_Pc
-        self.C_mat_cc = inv_Pc.T @ self.C_mat_c @ inv_Pc
-        self.oL_mat_cc = inv_Pc.T @ self.oL_mat_c @ inv_Pc
-#        self.oR_mat_c = inv_Pc.T @ self.oR_mat @ inv_Pc
-
-    def zero_oL_mat_c(self, print_bool):
-        # enforce 1/L=0 as voltage law ?
-        e, v = nl.eigh(self.oL_mat_cc)
-
-        oL_mat_cc_diag = v.T @ self.oL_mat_cc @ v
-        C_mat_cc_diag = v.T @ self.C_mat_cc @ v
-        if print_bool:
-#            print('zero C mat')
-#            print('Cmat_diag',C_mat_c_diag )
-            print('Cmat_diag',C_mat_cc_diag)
-            print('L mat diag',oL_mat_cc_diag)
-        indices = []
-        Pc = np.eye(len(oL_mat_cc_diag))
-        dT_dpphi = np.copy(C_mat_cc_diag)
-        for ii, oL in enumerate(np.diag(oL_mat_cc_diag)):
-            if equal_float(oL,0) and False:
-                indices.append(ii)
-                Pc[ii]= v @ dT_dpphi[ii] # constrain
-
-        inv_Pc = nl.inv(Pc)
-        inv_Pc = np.delete(inv_Pc, indices, axis=1)
-
-        self.Pccc = inv_Pc
-        if print_bool:
-            print('Pccc \n', self.Pccc)
-        self.oL_mat_ccc = inv_Pc.T @ self.oL_mat_cc @ inv_Pc
-        self.C_mat_ccc = inv_Pc.T @ self.C_mat_cc @ inv_Pc
-#        self.oR_mat_c = inv_Pc.T @ self.oR_mat @ inv_Pc
-
-    def get_normal_modes(self, print_bool):
-        if print_bool :
-            print('Pcc \n',self.Pcc)
-            print('Pccc  \n', self.Pccc)
-        PC = self.Pcc @ self.Pccc
-        self.n_dof=self.Pccc.shape[1]
-        oL = PC.T @ self.oL_mat_c @ PC
-        C = PC.T @ self.C_mat_c @ PC
-        T0 = C
-        U0 = oL
-        if print_bool :
-            print('C & oL matrices (T & U)')
-            print(T0)
-            print(U0)
-            print('')
-
-        w0, v0 = nl.eigh(T0)
-        if print_bool :
-            print('w0', w0)
-#        T1 = np.diag(w0)
-        U1 = v0.T @ U0 @ v0
-
-        inv_sqrtT1 = np.diag(w0**(-0.5))
-
-#        T2 = inv_sqrtT1 @ T1 @ inv_sqrtT1
-        U2 = inv_sqrtT1 @ U1 @ inv_sqrtT1
-
-        w2, v2 = nl.eigh(U2)
-        w2=np.abs(w2)
-        w = w2**0.5
-        phiZPF = (1/2/w)**0.5
-#        U3 = v2.T @ U2 @ v2
-        if print_bool :
-            print('w2', w2)
-            print('w', w)
-            print('Phi zpf', phiZPF)
-#        U4 = np.diag(phiZPF) @ U3 @ np.diag(phiZPF)
-
-        self.P_display = self.inv_Pc_reduced @ PC @ v0 @ inv_sqrtT1 @ v2 @ np.diag(phiZPF)
-        # all changes of variables without affine displacement, from phi to normal modes
-        self.P = PC @ v0 @ inv_sqrtT1 @ v2 @ np.diag(phiZPF) # entire matrix !!
-        # only changes of variable after affine, from phi_tilde to normal modes
-        self.omega0=w
-        self.kappa=np.zeros(len(w))
-        if print_bool:
-            str_array = ''
-            for omega in w:
-                freq = omega/2/np.pi
-                str_array += '%.3f, '%(freq)
-            print('Normal modes :')
-            print('freq = %s (GHz)'%(str_array[:-2]))
-            for ii, mode in enumerate(self.P_display.T):
-                disp_str = 'Mode %d = ['%ii
-                for comp in mode:
-                    disp_str += '%.3f, '%comp
-                disp_str = disp_str[:-2]+']'
-                print(disp_str)
-            print('')
-        self.w = w
-        return(w)
-
-
-
-    def dissipation(self, print_bool):
-         print('\n#### DISSIPATION #### \n')
-         T0 = self.C_mat_c
-         U0 = self.oL_mat_c
-         D0= self.oR_mat_c
-         print('\nT0\n',T0)
-         print('D0\n',D0)
-         print('U0\n',U0)
-         ndim=self.inv_Pc_reduced.shape[1]
-         print('\n ndim ', ndim)
-         print('shape', T0.shape[0])
-         #DZ the C matrix and rotate the R and L matrices
-         w0, v0 = nl.eigh(T0)
-         print('w0', w0)
-         T1 = np.diag(w0)
-         U1 = v0.T @ U0 @ v0
-         D1=v0.T@ D0 @ v0
-         print('T1 \n',T1)
-         print('D1 \n',D1)
-         print('U1 \n',U1)
-         flag_C_R_line_zero=False
-         flag_C_R_diag_zero=False
-                 #Specific case when the matrix are size 1
-#         if T1.shape[0]==1:
-#             Passage_matrix=np.array([]) #there is just one phi : passage_matrix is not useful in that case but it is defined "by default"
-#             index_to_remove=[]
-#             if T1[0,0]==0 and D1[0,0]==0:
-#                raise Exception('The circuit has just one inductance part')
-#             elif T1[0,0]==0:
-#                 T1[0,0]=D1[0,0].copy()
-#                 D1[0,0]=U1[0,0].copy()
-#                 U1[0,0]=0
-#         else:
-         index_to_remove=[]
-         Passage_matrix=np.eye(3*ndim)
-         for ii in range(ndim):
-             print('\n index :', ii)
-             if T1[ii][ii]==0: #shift of the raw
-                 print('C=0 ind :', ii)
-                 T1[ii]=D1[ii].copy()
-                 D1[ii]=U1[ii].copy()
-                 U1[ii]=np.zeros(ndim)
-                 if line_is_zero(T1,ii) :
-                     print('C=0 and 1/R line =0 for ind :', ii)
-                     index_to_remove.append(ii)
-                     flag_C_R_line_zero=True
-                 elif T1[ii,ii]==0: # chek if oR[ii]==0 because of the shift we check T1[ii]
-                      print('C=0 and 1/R=0 for ind :', ii)
-                      Passage_matrix[ii]=np.concatenate((D1[ii],T1[ii],np.zeros(ndim)),axis=0)  #phi line
-                      index_to_remove.append(ii)
-                      Passage_matrix[ii]=np.concatenate((np.zeros(ndim),D1[ii],T1[ii]),axis=0) #phi dot line
-                      flag_C_R_diag_zero=True
-
-         ndim_red=ndim-len(index_to_remove)
-         print('After shift  \n')
-         print('T1\n', T1)
-         print('D1\n', D1)
-         print('U1\n',U1)
-         print('Case of constrains just on phi :', flag_C_R_line_zero)
-         print('\nPassage \n',Passage_matrix)
-         print('Index to remove \n', index_to_remove)
-
-         if flag_C_R_line_zero and flag_C_R_diag_zero:
-             raise ValueError('Warning : this case can not be treated yet ')
-
-         elif flag_C_R_line_zero:
-            Passage_matrix=np.eye(ndim)
-            for ind in index_to_remove:
-                Passage_matrix[ind]=D1[ind] #because they was a shift this was previously the line of U1.
-            print('#### Constrains only on phi ###')
-            print('Passage \n', Passage_matrix)
-            #Invert and reduce Passage matrix
-            inv_Passage=nl.inv(Passage_matrix)
-            inv_Passage_reduced=np.delete(inv_Passage,index_to_remove, axis=1)
-            print('\nInv Passage \n', inv_Passage)
-            print('\nInv Passage reduced \n', inv_Passage_reduced)
-            #turn the matrices T1,D1, U1
-        #turn each array individually
-            T2=inv_Passage_reduced.T @ T1 @ inv_Passage_reduced
-            D2=inv_Passage_reduced.T @ D1 @ inv_Passage_reduced
-            U2=inv_Passage_reduced.T @ U1 @ inv_Passage_reduced
-            print('\nAfter rotation \n')
-            print('T2\n', T2)
-            print('D2\n', D2)
-            print('U2\n',U2)
-        #reduction of matrice
-         elif flag_C_R_diag_zero:
-             print('### Constrains linking phi and phi dot### \n')
-             inv_Passage=nl.inv(Passage_matrix)
-             inv_Passage_reduced=np.delete(inv_Passage,index_to_remove+[ndim+ind for ind in index_to_remove]+[2*ndim+ind for ind in index_to_remove], axis=1) # The index to remove must contains the indices of phi and phi_dot
-             print('\nInv Passage \n', inv_Passage)
-             print('\nInv Passage reduced \n', inv_Passage_reduced)
-            #turn the matrices T1,D1, U1
-             big_matrix=np.concatenate((T1,D1,U1), axis=1) # size (ndim, 3ndim)
-             print('Big matrix \n', big_matrix)
-             big_matrix_rotated=big_matrix @ inv_Passage_reduced  #size (ndim, 3*(ndim-numbers of removed index))
-             print('Rotated \n',big_matrix_rotated)
-             big_matrix_reduced=np.delete(big_matrix_rotated, index_to_remove, axis=0) # to have a size (ndim-numbers of removed index,ndim-numbers of removed index)
-             print('Reduced \n', big_matrix_reduced)
-             T2=np.take(big_matrix_reduced,range(ndim_red),axis=1)
-             D2=np.take(big_matrix_reduced,[ndim_red+k for k in range(ndim_red)], axis=1)
-             U2=np.take(big_matrix_reduced,[2*ndim_red+k for k in range(ndim_red)], axis=1)
-             print('After rotation \n')
-             print('T2\n', T2)
-             print('D2\n', D2)
-             print('U2\n',U2)
-         else:
-             inv_Passage=nl.inv(Passage_matrix) #identity (just to have the value of this attribute)
-             inv_Passage_reduced=inv_Passage
-             print('#### No constrains on phi ### \n')
-             T2=T1
-             D2=D1
-             U2=U1
-             print('T2\n', T2)
-             print('D2\n', D2)
-             print('U2\n',U2)
-         #inversion of the equation
-         T2_inv=nl.inv(T2)
-         bottom_mat=np.concatenate((-T2_inv@U2,-T2_inv@D2),axis=1)
-         up_mat=np.concatenate((np.zeros((ndim_red,ndim_red)),np.eye(ndim_red)),axis=1)
-         diff_equation_mat=np.concatenate((up_mat,bottom_mat),axis=0)
-         print('Diff eq array : \n',diff_equation_mat)
-
-
-         omega_C, vec_sol=nl.eig(diff_equation_mat)
-         self.omega_C=omega_C
-         self.omega0=np.imag(omega_C)
-         self.kappa=np.real(omega_C)
-         self.vec_sol=vec_sol[:ndim_red] # we take only the part for phi (the part on phi dot is deduced by multiplication of w (checked))
-         self.Passage_matrix=Passage_matrix
-         self.inv_Passage = inv_Passage
-         self.inv_Passage_reduced=inv_Passage_reduced
-         print('Complex omega\n',omega_C)
-#         print('Vec \n', vec_sol.T) # /!\ vec in columns
-         return(flag_C_R_line_zero, flag_C_R_diag_zero, v0) #v0 is the passage matrix for T0
-
-
-###
-    def modes_distribution(self, print_bool):
-        #returns an array for each mode, gives its distribution on phi and phi_dot
-        flag_C_R_line_zero, flag_C_R_diag_zero, v0= self.dissipation(print_bool)
-        print('\n ###  Modes distribution \n')
-        print('R=0  && C=0 ? ', flag_C_R_line_zero)
-        print('C=0 ? ', flag_C_R_diag_zero)
-        ndim=self.Passage_matrix.shape[0]
-        ndim_red=self.inv_Passage_reduced.shape[1]
-        print('ndim \n', ndim)
-        print('ndim red \n', ndim_red)
-        if not(flag_C_R_line_zero) and not(flag_C_R_diag_zero): # all modes are in vec_sol
-            print('Case where C!=0 or C=0 and no zero on R \n')
-            phi_modes=self.vec_sol #nothing to change : just take the phi and not phi dots.
-
-        elif flag_C_R_diag_zero:
-            print('Case C=0 and oR[diag]=0\n')
-            vec_tot=np.concatenate((self.vec_sol,self.omega_C*self.vec_sol, self.omega_C**2*self.vec_sol),axis=0)
-            phi_modes=(self.inv_Passage_reduced @ vec_tot ) [:ndim]
-
-        elif flag_C_R_line_zero:
-            print('Case C=0 and oR line=0 \n')
-            print('Inv passage red \n', self.inv_Passage_reduced)
-            print('Vec_sol \n', self.vec_sol)
-            phi_modes= self.inv_Passage_reduced @ self.vec_sol
-
-
-            #Back to physical modes
-        phi_modes=v0 @ phi_modes #because we went on the basis of C
-        print('Phi modes \n',phi_modes)
-        self.P_display= self.inv_Pc_reduced  @ phi_modes
-        print('P display \n', self.P_display)
-
-
-#        for (ind,vec_mode) in enumerate(self.vec_sol):
-#            if not(flag_C_R_line_zero) and not(flag_C_R_diag_zero): # all modes are in vec_sol
-#                 print('Case C!=0 \n')
-#                 phi_modes.append(vec_mode[:ndim]) #nothing to change : just take the phi and not phi dots.
-#            elif flag_C_R_diag_zero:
-#                print('Case C=0 \n')
-#                v_phi_dotdot=[elt*self.omega_C[ind]**2 for elt in vec_mode[:ndim_red]]
-#                eig_vec=np.concatenate((vec_mode, np.array(v_phi_dotdot)), axis=0)
-#                eig_vec=np.array(eig_vec)
-#                mode_tot=self.inv_Passage_reduced @ eig_vec
-#                phi_modes.append(mode_tot[:ndim])
-#            elif flag_C_R_line_zero:
-#                print('Case C=0 and oR=0 \n')
-#                #The passage matrix turns the phi
-#                 #we have to duplicate it to turns in the same way the phi dot.
-#                mode_tot= self.inv_Passage_reduced @ vec_mode[:ndim]
-#                phi_modes.append(mode_tot)
-        # Moche de faire ça : plutôt faire en produit matriciel!
-
-#        print('Modes distribution (in phi tilde) \n', phi_modes)
-#        print('Phi modes \n', phi_modes)
-#        #Then we have to take into account all the previous rotations
-#        distrib_modes_physical=[]
-#        print('')
-#        for vec in phi_modes :
-#            distrib_modes_physical.append(self.inv_Pc_reduced @ vec) # + self.inv_Pc@ self.vec_phiext ?)
-#        distrib_modes_physical=np.array(distrib_modes_physical)
-#        # Moche de faire ça : plutôt faire en produit matriciel!
-#        print('phi modes physical \n', distrib_modes_physical)
-#
-#        self.distrib_modes_physical=distrib_modes_physical
-        return(self.P_display)
-
-
-
-         #Passage_matrix can be either :
-         #identity  if not(flag_C_R_line_zero) and not(flag_C_R_diag_zero)
-         # size ndim  (- constrained phi) if flag_C_R_line_zero and not(flag_C_R_diag_zero)
-         #size 3*ndim(-constrained phi) if flag_C_R_diag_zero and not(flag_C_R_line_zero)
-      #convention, the vector is first phi and then phi dot
-
-    def solve_taylors(self, taylors, dicoval): #particulars is a list of lists that contains the indexes of the modes.
-        if taylors is not None:
-            Xip = []
-            for taylor in taylors:
-
-                factor = get_factor(taylor)
-                phi_norm=np.zeros(self.n_dof)
-                if len(taylor)==2:
-                    Hess2=self.derivative_U_(2, dicoval, self.P)(phi_norm)
-                    poptp = Hess2[taylor]/factor
-                    Xip.append(poptp/2/np.pi)
-                elif len(taylor)==3:
-                    Hess3=self.derivative_U_(3, dicoval, self.P)(phi_norm)
-                    poptp = Hess3[taylor]/factor
-                    Xip.append(poptp/2/np.pi)
-                elif len(taylor)==4:
-                    Hess4=self.derivative_U_(4, dicoval, self.P)(phi_norm)
-                    poptp = Hess4[taylor]/factor
-                    Xip.append(poptp/2/np.pi)
-            Xip = np.array(Xip)
-        else :
-            Xip=None
-        return(Xip)
-
-
-
-
-    def solve_global(self, dipoles_val, taylors=None, minimization_method='Powell', print_bool=True, display_bool=True):
-        self.list_indices()
-        self.convert_values_phiext(dipoles_val)
-        self.RLC_mat(dipoles_val)
-        self.phi_min_tilde = np.zeros(len(self.inv_Pc_reduced[0]))
-        self.dipoles = self.get_inv_dipoles_val_linearized(dipoles_val)
-        self.minimize(minimization_method, dipoles_val)
-        self.get_oL_matrix(dipoles_val, print_bool=print_bool)
-        self.get_oR_matrix(print_bool=print_bool)
-        self.get_C_matrix(print_bool=print_bool)
-            #stop  here in case of dissipation
-        if not self.dissipative:
-            self.zero_C_mat_c(print_bool)
-            self.zero_oL_mat_c(print_bool)
-            self.get_normal_modes(print_bool)
-            self.taylors = self.solve_taylors(taylors, dipoles_val)
-        else:
-            self.dissipation(print_bool=True)
-            if display_bool:
-                self.modes_distribution(print_bool)
-#        try:
-#            index_excitation = self.nodes_type[1:].index('excitation')
-#        except:
-#            print('WARNING : Could not find excitation, will not be \
-#                  able to compute solution\n')
-#        else:
-#            input_I = np.zeros(len(self.nodes)-1)
-#            input_I[index_excitation] = 1
-#            self.input_I = input_I
-#
-
-
-
-
-
-#
-#    def dissipation(self,dipoles_val):
-#        self.RLC_mat(dipoles_val)
-#        dim_dipoles=self.D_vec.shape[0] #pas du tout sûr ! On travaille sur les phi_tilde ?
-#        if nl.det(self.C_mat)!=0:
-#            oC_mat=nl.inv(self.C_mat)
-#            bottom_mat=np.concatenate((-self.oL_mat@oC_mat,-self.oR_mat@oC_mat),axis=1)
-#            up_mat=np.concatenate((np.zeros(dim_dipoles,dim_dipoles),np.eye(dim_dipoles,dim_dipoles)),axis=1)
-#            diff_equation_mat=np.concatenate((up_mat,bottom_mat),axis=0)
-#            omega_C, v=nl.eig(diff_equation_mat)
-#            omega_mat=np.real(omega_C)
-#            kappa_mat=np.imag(omega_C)
-#        else : #ie there is a zero on the diag of C
-#
-#            return(omega_mat, kappa_mat)
-
-
-
-
-
-#### SOLUTION CLASS
-
-    def solve(self, omega, dicoval):
-        self.dipoles=self.get_dipoles_admittance(dicoval)
-#        print(self.dipoles)
-        return Solution(self, omega)
-
-    def eigen_omega_Q(self, guess_omega, node=0):
-        guess_omega = np.array([np.real(guess_omega), np.imag(guess_omega)])
-        def Y(omega):
-            re_omega = omega[0]
-            im_omega = omega[1]
-            sol = self.solve(re_omega+1j*im_omega)
-            return np.abs(sol.Y_mat[node])
-        res = minimize(Y, guess_omega)
-
-        omega = res.x
-        omega0 = omega[0]
-        Q = omega[0]/2/omega[1]
-        return omega0, Q
-
-    def excitation_normal_modes(self,omega, dicoval):
-        sol=self.solve(omega, dicoval)
-        V_branches=sol.V_branches()
-        #construction of corresponding phi
-        vec_phi=[]
-        for elt_name in self.D_vec:
-            vec_phi.append(V_branches[elt_name]/(1j *omega))
-        vec_phi=np.array(vec_phi)
-        participation_modes=self.P_display.T @ vec_phi
-        return(participation_modes)
-
-class Solution(object):
-
-    def __init__(self, circuit, omega):
-        self.circuit = circuit
-        self.omega = omega
-
-        # compute conductance matrix
-        self.G_mat = self.eval_G_matrix()
-        self.inv_G_mat = nl.inv(self.G_mat)
-        self.Y_mat = self.eval_Y()
-        self.Z_mat = self.eval_Z()
-
-
-    def eval_G_matrix(self):
-        inv_D_vec = []
-        for D_val in self.circuit.D_vec:
-            inv_D_vec.append(self.circuit.dipoles(self.omega)[D_val])
-        inv_D_vec = np.array(inv_D_vec)
-        G_mat = self.circuit.A @ np.diag(inv_D_vec) @ self.circuit.A.T
-        # G_mat should have n° nodes size -1 because ground should not be in here
-        G_mat = np.delete(G_mat, 0, axis=0)
-        G_mat = np.delete(G_mat, 0, axis=1)
-        return G_mat
-
-    def eval_Y(self):
-        inv_G_mat = nl.inv(self.G_mat)
-        return 1/np.diag(inv_G_mat)
-
-    def eval_Z(self):
-        inv_G_mat = nl.inv(self.G_mat)
-        return np.diag(inv_G_mat)
-
-    def V_nodes(self,):
-        V_nodes = self.inv_G_mat @ self.circuit.input_I
-        V_nodes = np.concatenate((np.array([0]), V_nodes))
-        return V_nodes
-
-    def V_branches(self,):
-        V_nodes = self.V_nodes()
-        V_branches = self.circuit.A.T @ V_nodes
-        sol_dict = {}
-        for ii, D_val in enumerate(self.circuit.D_vec):
-            sol_dict[D_val] = V_branches[ii]
-        return sol_dict
