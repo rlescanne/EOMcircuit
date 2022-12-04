@@ -22,18 +22,13 @@ DIRECTIONS = [(0, 1), (1,0), (0,-1), (-1, 0)]
 
 from .cmap import color
 
-h = scipy.constants.h
-hbar = h/2/np.pi
-cap_phi_0=h/(2*scipy.constants.e)
-phi0= cap_phi_0/2/np.pi
-sci = hbar/phi0**2
-
-e = 1.6e-19
-hbar = 1.05e-34
-phi0=hbar/2/e
-sci = hbar/phi0**2
+e = scipy.constants.e
+hbar = scipy.constants.hbar
 conv_L = 2*np.pi*hbar/(4*e*np.pi)**2 # conversion factor from LJ nH to EJ GHz
-conv_C = e**2/2/(hbar*2*np.pi)  # conversion factor from LJ nH to EJ GHz
+                                     # LJ = conv_L/EJ
+conv_C = e**2/2/(hbar*2*np.pi) # conversion factor from C nF to EC GHz
+                               # C = conv_c/EC
+                               
 plt.close('all')
 
 
@@ -503,7 +498,7 @@ class Dipole():
         self.parent = parent
         self.children = []
         self.circuit=circuit
-        self.val = val # for kind 'T', val should be a tuple with (t, Z0)
+        self.val = val # for kind 'T', val should be a tuple with (t, Z0), for kind 'J', val should be a tuple with (L, fp)
 #        if not(val is None):
 #            if self.kind!=T:
 #                Dipole.dipole_val[self.name]=val
@@ -712,7 +707,7 @@ class Dipole():
     #        line_xy = pt_to_xy(line)
     #        ax.plot(*line_xy, color='red', lw=4)
 #            print(size)
-            ax.annotate('', xy=line[1], xytext=line[0], arrowprops=dict(arrowstyle="->, head_length=%f,head_width=%f"%(np.abs(size/3), np.abs(size/3)), color=color))
+            ax.annotate('', xy=line[1], xytext=line[0], arrowprops=dict(arrowstyle="->, head_length=%f,head_width=%f"%(np.abs(size/3), np.abs(size/3)), color=color, lw=2))
             if self.horiz:
                 if offset>0:
                     va='bottom'
@@ -927,21 +922,40 @@ class Dipole():
 
     def draw_jct(self, ax, lw_scale=1):
         size = 0.15
-
+        
+        _linea = np.array([[-size, -size], [-size, size]])
+        _lineb = np.array([[-size, -size], [size, -size]])
+        _linec = np.array([[size, size], [size, -size]])
+        _lined = np.array([[size, size], [-size, size]])
         _cross1 = np.array([[-size, -size], [size, size]])
         _cross2 = np.array([[-size, size], [size, -size]])
-        _line1 = np.array([[-1, 0], [1, 0]])
+        _line1 = np.array([[-1, 0], [-size, 0]])
+        _line2 = np.array([[size, 0], [1, 0]])
         if not self.horiz:
             _line1 = _line1[:, ::-1]
+            _line2 = _line2[:, ::-1]
+            
         _cross1 = _cross1 + self.center
         _cross2 = _cross2 + self.center
+        _linea += self.center
+        _lineb += self.center
+        _linec += self.center
+        _lined += self.center
+        
         _line1 = _line1 + self.center
+        _line2 = _line2 + self.center
 
         cross1 = Line2D(*pt_to_xy(_cross1), lw=4*lw_scale, solid_capstyle='butt')
         cross2 = Line2D(*pt_to_xy(_cross2), lw=4*lw_scale, solid_capstyle='butt')
         line1 = Line2D(*pt_to_xy(_line1))
+        line2 = Line2D(*pt_to_xy(_line2))
 
-        artists = [line1, cross1, cross2]
+        linea = Line2D(*pt_to_xy(_linea))
+        lineb = Line2D(*pt_to_xy(_lineb))
+        linec = Line2D(*pt_to_xy(_linec))
+        lined = Line2D(*pt_to_xy(_lined))
+
+        artists = [line1, line2, cross1, cross2, linea, lineb, linec, lined]
         for art in artists:
             ax.add_artist(art)
 
@@ -1458,7 +1472,7 @@ class Representation():
             if dipole.kind==T:
                 oL_mat[ii,ii]=1/dipole.val[0]/dipole.val[1]
             if dipole.kind==J:
-                oJ_mat[ii,ii]=1/dipole.val
+                oJ_mat[ii,ii]=1/dipole.val[0]
         self.oL_mat = oL_mat
         self.oJ_mat = oJ_mat
 #        print('oJ_oL_mat_defined')
@@ -1565,7 +1579,8 @@ class Representation():
             if dipole.kind==L:
                 current_mat[ii, ii]=1/dipole.val
             if dipole.kind==J:
-                current_mat[ii, ii]=1/dipole.val*np.cos(dipole.phi_DC)
+                capa = 1/(2*np.pi*dipole.val[1])**2/dipole.val[0]
+                current_mat[ii, ii]=1/dipole.val[0]*np.cos(dipole.phi_DC)-capa*omega**2
             if dipole.kind==T:
                 prefact = omega/dipole.val[1]/np.sin(omega*dipole.val[0])
 #                if prefact>500:
@@ -1590,7 +1605,7 @@ class Representation():
             if dipole.kind==L:
                 energy+=conv_L/dipole.val/2*np.abs(phi[ii])**2
             if dipole.kind==J:
-                energy+=conv_L/dipole.val/2*np.abs(phi[ii])**2*np.cos(dipole.phi_DC)
+                energy+=conv_L/dipole.val[0]/2*np.abs(phi[ii])**2*np.cos(dipole.phi_DC)
             if dipole.kind==T:
                 if counter_T%2==0:
                     phi_se = np.array([phi[ii], phi[ii+1]])
@@ -1623,7 +1638,8 @@ class Representation():
             if dipole.kind==L:
                 pass
             if dipole.kind==J:
-                pass
+                capa = 1/(2*np.pi*dipole.val[1])**2/dipole.val[0]
+                energy+=capa/2*np.abs(phi[ii])**2*np.abs(omega)**2
             if dipole.kind==T:
                 if counter_T%2==0:
                     phi_se = np.array([phi[ii], phi[ii+1]])
@@ -1681,7 +1697,7 @@ class Representation():
             eig_omegas, eig_phizpfs = self.solve_EIG(guesses, verbose=False)
         if kappas is None:
             dets = self.det_eom(omegas)
-            ax.plot(omegas/2/np.pi, np.abs(dets))
+            ax.plot(omegas/2/np.pi, np.abs(dets)/np.nanmax(np.abs(dets)))
             ax.hlines(0, omegas[0]/2/np.pi, omegas[-1]/2/np.pi, lw=0.5, color='k')
             if not(guesses is None):
                 for ii, eig_omega in enumerate(eig_omegas):
@@ -1739,6 +1755,8 @@ class Representation():
                 ax.set_yscale('log')
         if guesses is not None: 
             return eig_omegas, eig_phizpfs
+        else:
+            return None, None
 
     def eig_phi(self, omega): # return the eig vector with smallest eigenvalue (expected 0)
                               # at a given frequency
@@ -1779,7 +1797,6 @@ class Representation():
             mag = self.mag_energy(eig_omega, eig_phi) # find the magnetic energy of this configuration
             #prop = (4*mag/(sci*np.real(eig_omega)))**0.5 # factor to convert the phi configuration to a phi_zpf configuration
             prop = (4*mag*2*np.pi/np.real(eig_omega))**0.5 # factor to convert the phi configuration to a phi_zpf configuration
-
             phi_zpf = np.real(eig_phi)/prop
 #            gamma_zpf = np.real(eig_gamma)/prop
             eig_phizpfs.append(phi_zpf)
