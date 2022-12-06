@@ -15,9 +15,8 @@ from math import factorial
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle, Circle
 from sympy.parsing import sympy_parser
-from types import MethodType
-from traceback import print_exc
-from matplotlib.colors import LogNorm
+from scipy.linalg import inv
+
 DIRECTIONS = [(0, 1), (1,0), (0,-1), (-1, 0)]
 
 from .cmap import color
@@ -1268,6 +1267,7 @@ class Representation():
 
     def __init__(self, kind, circuit, dipoles):
         self.dipoles = dipoles
+        self.dipoles_names = [dipole.name for dipole in self.dipoles]
         self.circuit = circuit
 
         if kind=='raw':
@@ -1575,6 +1575,145 @@ class Representation():
                 counter_T+=1
         return current_mat
 
+    def build_capa_ind_mat(self):
+        n_phi = len(self.dipoles)
+        capa_m = np.zeros((n_phi, n_phi))
+        ind_m = np.zeros((n_phi, n_phi))
+
+        for ii, dipole in enumerate(self.dipoles):
+            if dipole.kind==C:
+                capa_m[ii, ii]=1/8/(conv_C/dipole.val)
+            if dipole.kind==L:
+                ind_m[ii, ii]=conv_L/dipole.val
+            if dipole.kind==J:
+                capa = 1/(2*np.pi*dipole.val[1])**2/dipole.val[0]
+                capa_m[ii, ii]=1/8/(conv_C/capa)
+                ind_m[ii, ii]=conv_L/dipole.val[0]*np.cos(dipole.phi_DC)
+                
+        return self.F.T@capa_m@self.F, self.F.T@ind_m@self.F
+
+    def freq_zpf(self, verbose=False):
+        capa_m, ind_m = self.build_capa_ind_mat()
+        omegamat = inv(capa_m)@ind_m
+        e, v = nl.eig(omegamat)
+        idx = e.argsort()   
+        e = e[idx]
+        v = v[:,idx]
+
+        U = np.diag(v.T @ ind_m @ v)/2
+
+        factor = U / (e**0.5/4)
+
+        v = v / factor**0.5
+
+        return e**0.5, self.F@v # [dipole, mode]
+
+    def update(self, dipoles, values):
+        for (value, dipole) in zip(values, dipoles):
+            if dipole.kind == 'J':
+                dipole.val = (value, dipole.val[1]) # assume not dynamically changing plasma frequency
+            else:
+                dipole.val = value
+    
+    def optimize(self, constraints, dipoles, guesses, show_init=False):
+        """
+        constraints : is the a dictionnary of target parameters. It should be constructed as follows :
+            keyword -> 'freq' is the target frequency in GHz
+            keyword -> any dipole object is the target zpf of mode with freq 'freq' in dipole object
+        
+        dipoles : is the list of dipoles on which the optimization can modify the values
+        guesses : is the list of guesses for these values
+
+        /!\ when acting on junctions elements, only the inductance parameter is optimized on
+        """
+
+        mode_indices = []
+        mode_target = []
+        zpf_dipole_indices = []
+        zpf_mode_indices = []
+        zpf_target = []
+        for ii, constraint in enumerate(constraints):
+            mode_indices.append(ii)
+            mode_target.append(constraint['f'])
+            for key in constraint.keys():
+                if key != 'f':
+                    dipole_index = self.dipoles_names.index(key.name)
+                    zpf_dipole_indices.append(dipole_index)
+                    zpf_mode_indices.append(ii)
+                    zpf_target.append(constraint[key])
+        mode_target = np.array(mode_target)
+        zpf_target = np.array(zpf_target)
+
+        if show_init:
+            f, v = self.freq_zpf()
+            fs = f[mode_indices]
+            vs = np.abs(v[zpf_dipole_indices, zpf_mode_indices])
+
+            print("Result")
+            for (v, x, y) in zip(mode_indices, mode_target, fs):
+                print(v, ':', x, '->', y)
+            for (u, v, x, y) in zip(zpf_dipole_indices, zpf_mode_indices, zpf_target, vs):
+                print(self.dipoles[u], v, ':', x, '->', y)
+            print('')
+            print("Parameters")
+            for dipole in dipoles:
+                print(dipole, '=', dipole.val)
+
+        def cost(ps):
+            ps = np.abs(ps)
+            self.update(dipoles, ps)
+
+            f, v = self.freq_zpf()
+
+            fs = f[mode_indices]
+            vs = np.abs(v[zpf_dipole_indices, zpf_mode_indices])
+
+            f_cost = np.sum(((fs-mode_target)/mode_target)**2)
+            zpf_cost = np.sum(((vs-zpf_target)/zpf_target)**2)
+
+            cost = np.real((f_cost + zpf_cost)*1e3)
+
+            if False:
+                print(ps)
+                print(fs, mode_target)
+                print(vs, zpf_target)
+                print(cost)
+                print('')
+
+            return cost
+
+        res = minimize(cost, guesses)
+        self.update(dipoles, res.x)
+        
+        f, v = self.freq_zpf()
+        fs = f[mode_indices]
+        vs = np.abs(v[zpf_dipole_indices, zpf_mode_indices])
+
+        print("Result")
+        for (v, x, y) in zip(mode_indices, mode_target, fs):
+            print(v, ':', x, '->', y)
+        for (u, v, x, y) in zip(zpf_dipole_indices, zpf_mode_indices, zpf_target, vs):
+            print(self.dipoles[u], v, ':', x, '->', y)
+        print('')
+        print("Parameters")
+        for dipole in dipoles:
+            print(dipole, '=', dipole.val)
+        
+        return f, v
+
+    def zpf(self, vector, dipole, mode_index=None):
+        """
+        tool to retrieve easily the zpf accross a dipole
+        vector : zpf vector
+        dipole : dipole object
+        mode_index : mode index
+        """
+        dipole_index = self.dipoles_names.index(dipole.name)
+        if mode_index is not None:
+            return vector[dipole_index, mode_index]
+        else:
+            return vector[dipole_index]
+
     def mag_energy(self, omega, phi):
         energy = 0
         counter_T = 0
@@ -1747,10 +1886,6 @@ class Representation():
         phi = self.F @ gamma
         return phi#, gamma
     
-    def freq_zpf(self, verbose=False):
-        # check if only L and C -> do the eigenmode computation fast
-        pass
-
     def solve_EIG(self, guesses, verbose=False):
 
 
