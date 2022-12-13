@@ -572,7 +572,6 @@ class Dipole():
     def assign_coor(self, circuit, start, end): # used at parsing, jump when only need to create fictious dipole for AC/DC Repr
         # this should create a dipole with the val linked to the one that
         # was used for creation
-
         dipole = self.copy_dipole(circuit=circuit)
         circuit.dipoles.append(dipole)
 
@@ -1610,7 +1609,7 @@ class Representation():
 
     def update(self, dipoles, values):
         for (value, dipole) in zip(values, dipoles):
-            if dipole.kind == 'J':
+            if dipole.kind == J:
                 dipole.val = (value, dipole.val[1]) # assume not dynamically changing plasma frequency
             else:
                 dipole.val = value
@@ -1626,7 +1625,6 @@ class Representation():
 
         /!\ when acting on junctions elements, only the inductance parameter is optimized on
         """
-
         mode_indices = []
         mode_target = []
         zpf_dipole_indices = []
@@ -2096,7 +2094,6 @@ class Circuit(object):
         self.rep_AC.find_loops()
         self.rep_AC.build_constrain('AC')        
 
-
     def parse(self,):
         self.plotted_elt = set()
         circuit = self.circuit_array
@@ -2127,6 +2124,7 @@ class Circuit(object):
         name_elements(self.holes)
 
         self.update_vals()
+
 
     def update_vals(self):
         for dipole in self.dipoles:
