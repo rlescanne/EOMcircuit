@@ -1599,6 +1599,13 @@ class Representation():
         e = e[idx]
         v = v[:,idx]
 
+        # ignor 0 frequencies
+        if e[0]==0:
+            e = e[1:]
+            v = v[:,1:]
+
+        # TODO
+
         U = np.diag(v.T @ ind_m @ v)/2
 
         factor = U / (e**0.5/4)
@@ -1614,7 +1621,7 @@ class Representation():
             else:
                 dipole.val = value
     
-    def optimize(self, constraints, dipoles, guesses, show_init=False):
+    def optimize(self, constraints, dipoles, guesses, show_init=False, verbose=True):
         """
         constraints : is the a dictionnary of target parameters. It should be constructed as follows :
             keyword -> 'freq' is the target frequency in GHz
@@ -1687,16 +1694,17 @@ class Representation():
         fs = f[mode_indices]
         vs = np.abs(v[zpf_dipole_indices, zpf_mode_indices])
 
-        print("Result")
-        for (v, x, y) in zip(mode_indices, mode_target, fs):
-            print(v, ':', x, '->', y)
-        for (u, v, x, y) in zip(zpf_dipole_indices, zpf_mode_indices, zpf_target, vs):
-            print(self.dipoles[u], v, ':', x, '->', y)
-        print('')
-        print("Parameters")
-        for dipole in dipoles:
-            print(dipole, '=', dipole.val)
-        
+        if verbose:
+            print("Result")
+            for (v, x, y) in zip(mode_indices, mode_target, fs):
+                print(v, ':', x, '->', y)
+            for (u, v, x, y) in zip(zpf_dipole_indices, zpf_mode_indices, zpf_target, vs):
+                print(self.dipoles[u], v, ':', x, '->', y)
+            print('')
+            print("Parameters")
+            for dipole in dipoles:
+                print(dipole, '=', dipole.val)
+            
         return f, v
 
     def zpf(self, vector, dipole, mode_index=None):
